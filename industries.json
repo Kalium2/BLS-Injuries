@@ -1,12 +1,678 @@
 {
-  "_about": "Maps NAICS codes to the supersector and industry codes BLS uses inside its injury series IDs. Generated from https://download.bls.gov/pub/time.series/is/is.series",
-  "_fields": {
-    "naics": "NAICS code as it appears in OSHA inspection records. Leave empty for totals.",
-    "label": "Plain-language industry name shown in the dropdown.",
-    "ss": "3-digit BLS supersector code.",
-    "ind": "6-digit BLS industry code."
-  },
+  "_about": "NAICS subsector to BLS supersector/industry codes, built from BLS is.series.",
+  "_generated_from": "https://download.bls.gov/pub/time.series/is/is.series",
   "industries": [
-    { "naics": "", "label": "All industries", "ss": "000", "ind": "000000" }
+    {
+      "naics": "",
+      "label": "All industries",
+      "ss": "000",
+      "ind": "000000",
+      "group": ""
+    },
+    {
+      "naics": "236",
+      "label": "Construction of buildings",
+      "ss": "CON",
+      "ind": "236000",
+      "group": "Construction"
+    },
+    {
+      "naics": "237",
+      "label": "Heavy and civil engineering construction",
+      "ss": "CON",
+      "ind": "237000",
+      "group": "Construction"
+    },
+    {
+      "naics": "238",
+      "label": "Specialty trade contractors",
+      "ss": "CON",
+      "ind": "238000",
+      "group": "Construction"
+    },
+    {
+      "naics": "611",
+      "label": "Educational services",
+      "ss": "EHS",
+      "ind": "611000",
+      "group": "Education and health services"
+    },
+    {
+      "naics": "621",
+      "label": "Ambulatory health care services",
+      "ss": "EHS",
+      "ind": "621000",
+      "group": "Education and health services"
+    },
+    {
+      "naics": "622",
+      "label": "Hospitals",
+      "ss": "EHS",
+      "ind": "622000",
+      "group": "Education and health services"
+    },
+    {
+      "naics": "623",
+      "label": "Nursing and residential care facilities",
+      "ss": "EHS",
+      "ind": "623000",
+      "group": "Education and health services"
+    },
+    {
+      "naics": "624",
+      "label": "Social assistance",
+      "ss": "EHS",
+      "ind": "624000",
+      "group": "Education and health services"
+    },
+    {
+      "naics": "521",
+      "label": "Monetary authorities, central bank",
+      "ss": "FIA",
+      "ind": "521000",
+      "group": "Financial activities"
+    },
+    {
+      "naics": "522",
+      "label": "Credit intermediation and related activities",
+      "ss": "FIA",
+      "ind": "522000",
+      "group": "Financial activities"
+    },
+    {
+      "naics": "523",
+      "label": "Securities and commodity contracts",
+      "ss": "FIA",
+      "ind": "523000",
+      "group": "Financial activities"
+    },
+    {
+      "naics": "524",
+      "label": "Insurance carriers and related activities",
+      "ss": "FIA",
+      "ind": "524000",
+      "group": "Financial activities"
+    },
+    {
+      "naics": "525",
+      "label": "Funds, trusts and other financial vehicles",
+      "ss": "FIA",
+      "ind": "525000",
+      "group": "Financial activities"
+    },
+    {
+      "naics": "531",
+      "label": "Real estate",
+      "ss": "FIA",
+      "ind": "531000",
+      "group": "Financial activities"
+    },
+    {
+      "naics": "532",
+      "label": "Rental and leasing services",
+      "ss": "FIA",
+      "ind": "532000",
+      "group": "Financial activities"
+    },
+    {
+      "naics": "533",
+      "label": "Lessors of nonfinancial intangible assets",
+      "ss": "FIA",
+      "ind": "533000",
+      "group": "Financial activities"
+    },
+    {
+      "naics": "511",
+      "label": "Publishing industries, except Internet",
+      "ss": "INF",
+      "ind": "511000",
+      "group": "Information"
+    },
+    {
+      "naics": "512",
+      "label": "Motion picture and sound recording",
+      "ss": "INF",
+      "ind": "512000",
+      "group": "Information"
+    },
+    {
+      "naics": "515",
+      "label": "Broadcasting, except Internet",
+      "ss": "INF",
+      "ind": "515000",
+      "group": "Information"
+    },
+    {
+      "naics": "517",
+      "label": "Telecommunications",
+      "ss": "INF",
+      "ind": "517000",
+      "group": "Information"
+    },
+    {
+      "naics": "518",
+      "label": "Data processing, hosting and related services",
+      "ss": "INF",
+      "ind": "518000",
+      "group": "Information"
+    },
+    {
+      "naics": "519",
+      "label": "Other information services",
+      "ss": "INF",
+      "ind": "519000",
+      "group": "Information"
+    },
+    {
+      "naics": "711",
+      "label": "Performing arts and spectator sports",
+      "ss": "LEH",
+      "ind": "711000",
+      "group": "Leisure and hospitality"
+    },
+    {
+      "naics": "712",
+      "label": "Museums, historical sites and similar",
+      "ss": "LEH",
+      "ind": "712000",
+      "group": "Leisure and hospitality"
+    },
+    {
+      "naics": "713",
+      "label": "Amusement, gambling and recreation",
+      "ss": "LEH",
+      "ind": "713000",
+      "group": "Leisure and hospitality"
+    },
+    {
+      "naics": "721",
+      "label": "Accommodation",
+      "ss": "LEH",
+      "ind": "721000",
+      "group": "Leisure and hospitality"
+    },
+    {
+      "naics": "722",
+      "label": "Food services and drinking places",
+      "ss": "LEH",
+      "ind": "722000",
+      "group": "Leisure and hospitality"
+    },
+    {
+      "naics": "311",
+      "label": "Food manufacturing",
+      "ss": "MFG",
+      "ind": "311000",
+      "group": "Manufacturing"
+    },
+    {
+      "naics": "312",
+      "label": "Beverage and tobacco product manufacturing",
+      "ss": "MFG",
+      "ind": "312000",
+      "group": "Manufacturing"
+    },
+    {
+      "naics": "313",
+      "label": "Textile mills",
+      "ss": "MFG",
+      "ind": "313000",
+      "group": "Manufacturing"
+    },
+    {
+      "naics": "314",
+      "label": "Textile product mills",
+      "ss": "MFG",
+      "ind": "314000",
+      "group": "Manufacturing"
+    },
+    {
+      "naics": "315",
+      "label": "Apparel manufacturing",
+      "ss": "MFG",
+      "ind": "315000",
+      "group": "Manufacturing"
+    },
+    {
+      "naics": "316",
+      "label": "Leather and allied product manufacturing",
+      "ss": "MFG",
+      "ind": "316000",
+      "group": "Manufacturing"
+    },
+    {
+      "naics": "321",
+      "label": "Wood product manufacturing",
+      "ss": "MFG",
+      "ind": "321000",
+      "group": "Manufacturing"
+    },
+    {
+      "naics": "322",
+      "label": "Paper manufacturing",
+      "ss": "MFG",
+      "ind": "322000",
+      "group": "Manufacturing"
+    },
+    {
+      "naics": "323",
+      "label": "Printing and related support activities",
+      "ss": "MFG",
+      "ind": "323000",
+      "group": "Manufacturing"
+    },
+    {
+      "naics": "324",
+      "label": "Petroleum and coal products manufacturing",
+      "ss": "MFG",
+      "ind": "324000",
+      "group": "Manufacturing"
+    },
+    {
+      "naics": "325",
+      "label": "Chemical manufacturing",
+      "ss": "MFG",
+      "ind": "325000",
+      "group": "Manufacturing"
+    },
+    {
+      "naics": "326",
+      "label": "Plastics and rubber products manufacturing",
+      "ss": "MFG",
+      "ind": "326000",
+      "group": "Manufacturing"
+    },
+    {
+      "naics": "327",
+      "label": "Nonmetallic mineral product manufacturing",
+      "ss": "MFG",
+      "ind": "327000",
+      "group": "Manufacturing"
+    },
+    {
+      "naics": "331",
+      "label": "Primary metal manufacturing",
+      "ss": "MFG",
+      "ind": "331000",
+      "group": "Manufacturing"
+    },
+    {
+      "naics": "332",
+      "label": "Fabricated metal product manufacturing",
+      "ss": "MFG",
+      "ind": "332000",
+      "group": "Manufacturing"
+    },
+    {
+      "naics": "333",
+      "label": "Machinery manufacturing",
+      "ss": "MFG",
+      "ind": "333000",
+      "group": "Manufacturing"
+    },
+    {
+      "naics": "334",
+      "label": "Computer and electronic product manufacturing",
+      "ss": "MFG",
+      "ind": "334000",
+      "group": "Manufacturing"
+    },
+    {
+      "naics": "335",
+      "label": "Electrical equipment and appliance manufacturing",
+      "ss": "MFG",
+      "ind": "335000",
+      "group": "Manufacturing"
+    },
+    {
+      "naics": "336",
+      "label": "Transportation equipment manufacturing",
+      "ss": "MFG",
+      "ind": "336000",
+      "group": "Manufacturing"
+    },
+    {
+      "naics": "337",
+      "label": "Furniture and related product manufacturing",
+      "ss": "MFG",
+      "ind": "337000",
+      "group": "Manufacturing"
+    },
+    {
+      "naics": "339",
+      "label": "Miscellaneous manufacturing",
+      "ss": "MFG",
+      "ind": "339000",
+      "group": "Manufacturing"
+    },
+    {
+      "naics": "111",
+      "label": "Crop production",
+      "ss": "NRM",
+      "ind": "111000",
+      "group": "Natural resources and mining"
+    },
+    {
+      "naics": "112",
+      "label": "Animal production and aquaculture",
+      "ss": "NRM",
+      "ind": "112000",
+      "group": "Natural resources and mining"
+    },
+    {
+      "naics": "113",
+      "label": "Forestry and logging",
+      "ss": "NRM",
+      "ind": "113000",
+      "group": "Natural resources and mining"
+    },
+    {
+      "naics": "114",
+      "label": "Fishing, hunting and trapping",
+      "ss": "NRM",
+      "ind": "114000",
+      "group": "Natural resources and mining"
+    },
+    {
+      "naics": "115",
+      "label": "Support activities for agriculture and forestry",
+      "ss": "NRM",
+      "ind": "115000",
+      "group": "Natural resources and mining"
+    },
+    {
+      "naics": "211",
+      "label": "Oil and gas extraction",
+      "ss": "NRM",
+      "ind": "211000",
+      "group": "Natural resources and mining"
+    },
+    {
+      "naics": "212",
+      "label": "Mining, except oil and gas",
+      "ss": "NRM",
+      "ind": "212000",
+      "group": "Natural resources and mining"
+    },
+    {
+      "naics": "213",
+      "label": "Support activities for mining",
+      "ss": "NRM",
+      "ind": "213000",
+      "group": "Natural resources and mining"
+    },
+    {
+      "naics": "811",
+      "label": "Repair and maintenance",
+      "ss": "OTS",
+      "ind": "811000",
+      "group": "Other services"
+    },
+    {
+      "naics": "812",
+      "label": "Personal and laundry services",
+      "ss": "OTS",
+      "ind": "812000",
+      "group": "Other services"
+    },
+    {
+      "naics": "813",
+      "label": "Religious, civic and professional organizations",
+      "ss": "OTS",
+      "ind": "813000",
+      "group": "Other services"
+    },
+    {
+      "naics": "921",
+      "label": "General government support",
+      "ss": "PAD",
+      "ind": "921000",
+      "group": "Public administration"
+    },
+    {
+      "naics": "922",
+      "label": "Justice, public order and safety",
+      "ss": "PAD",
+      "ind": "922000",
+      "group": "Public administration"
+    },
+    {
+      "naics": "923",
+      "label": "Administration of human resource programs",
+      "ss": "PAD",
+      "ind": "923000",
+      "group": "Public administration"
+    },
+    {
+      "naics": "924",
+      "label": "Administration of environmental quality",
+      "ss": "PAD",
+      "ind": "924000",
+      "group": "Public administration"
+    },
+    {
+      "naics": "925",
+      "label": "Housing and community development programs",
+      "ss": "PAD",
+      "ind": "925000",
+      "group": "Public administration"
+    },
+    {
+      "naics": "926",
+      "label": "Administration of economic programs",
+      "ss": "PAD",
+      "ind": "926000",
+      "group": "Public administration"
+    },
+    {
+      "naics": "541",
+      "label": "Professional, scientific and technical services",
+      "ss": "PBS",
+      "ind": "541000",
+      "group": "Professional and business services"
+    },
+    {
+      "naics": "551",
+      "label": "Management of companies and enterprises",
+      "ss": "PBS",
+      "ind": "551000",
+      "group": "Professional and business services"
+    },
+    {
+      "naics": "561",
+      "label": "Administrative and support services",
+      "ss": "PBS",
+      "ind": "561000",
+      "group": "Professional and business services"
+    },
+    {
+      "naics": "562",
+      "label": "Waste management and remediation services",
+      "ss": "PBS",
+      "ind": "562000",
+      "group": "Professional and business services"
+    },
+    {
+      "naics": "221",
+      "label": "Utilities",
+      "ss": "TTU",
+      "ind": "221000",
+      "group": "Trade, transportation and utilities"
+    },
+    {
+      "naics": "423",
+      "label": "Merchant wholesalers, durable goods",
+      "ss": "TTU",
+      "ind": "423000",
+      "group": "Trade, transportation and utilities"
+    },
+    {
+      "naics": "424",
+      "label": "Merchant wholesalers, nondurable goods",
+      "ss": "TTU",
+      "ind": "424000",
+      "group": "Trade, transportation and utilities"
+    },
+    {
+      "naics": "425",
+      "label": "Wholesale electronic markets, agents and brokers",
+      "ss": "TTU",
+      "ind": "425000",
+      "group": "Trade, transportation and utilities"
+    },
+    {
+      "naics": "441",
+      "label": "Motor vehicle and parts dealers",
+      "ss": "TTU",
+      "ind": "441000",
+      "group": "Trade, transportation and utilities"
+    },
+    {
+      "naics": "442",
+      "label": "Furniture and home furnishings stores",
+      "ss": "TTU",
+      "ind": "442000",
+      "group": "Trade, transportation and utilities"
+    },
+    {
+      "naics": "443",
+      "label": "Electronics and appliance stores",
+      "ss": "TTU",
+      "ind": "443000",
+      "group": "Trade, transportation and utilities"
+    },
+    {
+      "naics": "444",
+      "label": "Building material and garden supplies dealers",
+      "ss": "TTU",
+      "ind": "444000",
+      "group": "Trade, transportation and utilities"
+    },
+    {
+      "naics": "445",
+      "label": "Food and beverage stores",
+      "ss": "TTU",
+      "ind": "445000",
+      "group": "Trade, transportation and utilities"
+    },
+    {
+      "naics": "446",
+      "label": "Health and personal care stores",
+      "ss": "TTU",
+      "ind": "446000",
+      "group": "Trade, transportation and utilities"
+    },
+    {
+      "naics": "447",
+      "label": "Gasoline stations",
+      "ss": "TTU",
+      "ind": "447000",
+      "group": "Trade, transportation and utilities"
+    },
+    {
+      "naics": "448",
+      "label": "Clothing and clothing accessories stores",
+      "ss": "TTU",
+      "ind": "448000",
+      "group": "Trade, transportation and utilities"
+    },
+    {
+      "naics": "451",
+      "label": "Sporting goods, hobby, music and book stores",
+      "ss": "TTU",
+      "ind": "451000",
+      "group": "Trade, transportation and utilities"
+    },
+    {
+      "naics": "452",
+      "label": "General merchandise stores",
+      "ss": "TTU",
+      "ind": "452000",
+      "group": "Trade, transportation and utilities"
+    },
+    {
+      "naics": "453",
+      "label": "Miscellaneous store retailers",
+      "ss": "TTU",
+      "ind": "453000",
+      "group": "Trade, transportation and utilities"
+    },
+    {
+      "naics": "454",
+      "label": "Nonstore retailers",
+      "ss": "TTU",
+      "ind": "454000",
+      "group": "Trade, transportation and utilities"
+    },
+    {
+      "naics": "481",
+      "label": "Air transportation",
+      "ss": "TTU",
+      "ind": "481000",
+      "group": "Trade, transportation and utilities"
+    },
+    {
+      "naics": "482",
+      "label": "Rail transportation",
+      "ss": "TTU",
+      "ind": "482000",
+      "group": "Trade, transportation and utilities"
+    },
+    {
+      "naics": "483",
+      "label": "Water transportation",
+      "ss": "TTU",
+      "ind": "483000",
+      "group": "Trade, transportation and utilities"
+    },
+    {
+      "naics": "484",
+      "label": "Truck transportation",
+      "ss": "TTU",
+      "ind": "484000",
+      "group": "Trade, transportation and utilities"
+    },
+    {
+      "naics": "485",
+      "label": "Transit and ground passenger transportation",
+      "ss": "TTU",
+      "ind": "485000",
+      "group": "Trade, transportation and utilities"
+    },
+    {
+      "naics": "486",
+      "label": "Pipeline transportation",
+      "ss": "TTU",
+      "ind": "486000",
+      "group": "Trade, transportation and utilities"
+    },
+    {
+      "naics": "487",
+      "label": "Scenic and sightseeing transportation",
+      "ss": "TTU",
+      "ind": "487000",
+      "group": "Trade, transportation and utilities"
+    },
+    {
+      "naics": "488",
+      "label": "Support activities for transportation",
+      "ss": "TTU",
+      "ind": "488000",
+      "group": "Trade, transportation and utilities"
+    },
+    {
+      "naics": "492",
+      "label": "Couriers and messengers",
+      "ss": "TTU",
+      "ind": "492000",
+      "group": "Trade, transportation and utilities"
+    },
+    {
+      "naics": "493",
+      "label": "Warehousing and storage",
+      "ss": "TTU",
+      "ind": "493000",
+      "group": "Trade, transportation and utilities"
+    }
   ]
 }
