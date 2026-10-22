@@ -395,21 +395,7 @@ const WORKER_URL = "https://bls-injuries.YOUR-SUBDOMAIN.workers.dev";
 const COLORS = ["--s1", "--s2", "--s3", "--s4", "--s5", "--s6"];
 const MAX_LINES = 6;
 
-const STATES = {
-  "00": "United States", "01": "Alabama", "02": "Alaska", "04": "Arizona",
-  "05": "Arkansas", "06": "California", "08": "Colorado", "09": "Connecticut",
-  "10": "Delaware", "11": "District of Columbia", "12": "Florida", "13": "Georgia",
-  "15": "Hawaii", "16": "Idaho", "17": "Illinois", "18": "Indiana", "19": "Iowa",
-  "20": "Kansas", "21": "Kentucky", "22": "Louisiana", "23": "Maine",
-  "24": "Maryland", "25": "Massachusetts", "26": "Michigan", "27": "Minnesota",
-  "28": "Mississippi", "29": "Missouri", "30": "Montana", "31": "Nebraska",
-  "32": "Nevada", "33": "New Hampshire", "34": "New Jersey", "35": "New Mexico",
-  "36": "New York", "37": "North Carolina", "38": "North Dakota", "39": "Ohio",
-  "40": "Oklahoma", "41": "Oregon", "42": "Pennsylvania", "44": "Rhode Island",
-  "45": "South Carolina", "46": "South Dakota", "47": "Tennessee", "48": "Texas",
-  "49": "Utah", "50": "Vermont", "51": "Virginia", "53": "Washington",
-  "54": "West Virginia", "55": "Wisconsin", "56": "Wyoming"
-};
+let areas = [{ code: "00", label: "United States" }];
 
 const MEASURE_UNITS = {
   "3|1": "cases per 100 full-time workers",
@@ -442,35 +428,62 @@ async function loadIndustries() {
 
   const sel = el("industry");
   sel.innerHTML = "";
+  const groups = new Map();
+
   for (const row of industries) {
+    const key = row.group || "";
+    if (!groups.has(key)) {
+      groups.set(key, key
+        ? Object.assign(document.createElement("optgroup"), { label: key })
+        : sel);
+    }
     const opt = document.createElement("option");
     opt.value = row.ss + "|" + row.ind;
     opt.textContent = row.naics ? `${row.label} (${row.naics})` : row.label;
     opt.dataset.label = row.label;
     opt.dataset.naics = row.naics || "";
-    sel.append(opt);
+    groups.get(key).append(opt);
   }
 
-  // Let another page link in with ?naics=236
-  const wanted = new URLSearchParams(location.search).get("naics");
+  for (const node of groups.values()) {
+    if (node !== sel) sel.append(node);
+  }
+
+  // Let another page link in with ?naics=238110 — walk up to the subsector.
+  const wanted = (new URLSearchParams(location.search).get("naics") || "").replace(/\D/g, "");
   if (wanted) {
-    const match = [...sel.options].find((o) => o.dataset.naics === wanted);
+    const options = [...sel.options];
+    let code = wanted;
+    let match = null;
+    while (code.length >= 2 && !match) {
+      match = options.find((o) => o.dataset.naics === code);
+      if (!match) code = code.slice(0, -1);
+    }
     if (match) {
       sel.value = match.value;
       addFromForm();
     } else {
-      note(`No industry in the list matches NAICS ${wanted}.`);
+      note(`No BLS industry covers NAICS ${wanted}.`);
     }
   }
 }
 
-function buildStates() {
+async function loadAreas() {
+  try {
+    const res = await fetch("areas.json");
+    if (!res.ok) throw new Error("not found");
+    const data = await res.json();
+    if (Array.isArray(data.areas) && data.areas.length) areas = data.areas;
+  } catch (err) {
+    note("Only the national total is available until areas.json is filled in.");
+  }
+
   const sel = el("state");
   sel.innerHTML = "";
-  for (const [code, name] of Object.entries(STATES)) {
+  for (const area of areas) {
     const opt = document.createElement("option");
-    opt.value = code;
-    opt.textContent = name;
+    opt.value = area.code;
+    opt.textContent = area.label;
     sel.append(opt);
   }
   sel.value = "00";
@@ -550,7 +563,7 @@ function addFromForm() {
   const area = el("ownership").value + el("state").value;
   const seriesId = "ISU" + ss + ind + dataType + caseType + area;
 
-  const place = STATES[el("state").value];
+  const place = el("state").selectedOptions[0].textContent;
   const owner = el("ownership").selectedOptions[0].textContent;
   const label = `${chosen.dataset.label} \u2014 ${place}, ${owner.toLowerCase()}`;
 
@@ -753,7 +766,7 @@ el("addraw").addEventListener("click", () => {
   addLine(id, id, "");
 });
 
-buildStates();
+loadAreas();
 loadIndustries();
 </script>
 </body>
