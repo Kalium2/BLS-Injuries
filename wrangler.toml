@@ -1,0 +1,13 @@
+# Cloudflare Worker config for the BLS injuries tool.
+# This is a separate Worker from the OSHA one — different name, different key.
+#
+# Deploy with:
+#   wrangler secret put BLS_API_KEY
+#   wrangler deploy
+
+name = "bls-injuries"
+main = "bls-injuries-worker.js"
+compatibility_date = "2026-10-01"
+
+# BLS_API_KEY is deliberately not listed here. Secrets never go in this file,
+# because this file gets committed to the repo. Use `wrangler secret put`.

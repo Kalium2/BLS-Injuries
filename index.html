@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Injury rates by industry — BLS lookup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink:      #15181c;
+    --ink-soft: #5c6470;
+    --paper:    #ffffff;
+    --field:    #f1f3f1;
+    --rule:     #ced3cd;
+    --safety:   #00703c;
+    --focus:    #1f5673;
+
+    --s1: #00703c;
+    --s2: #1f5673;
+    --s3: #b3362a;
+    --s4: #7a5c2e;
+    --s5: #5b4b8a;
+    --s6: #8c6b1f;
+
+    --gap: 1.5rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink:      #e8eae7;
+      --ink-soft: #99a1a8;
+      --paper:    #16191b;
+      --field:    #1f2325;
+      --rule:     #343a3c;
+      --safety:   #4fae7d;
+      --focus:    #7fb3d1;
+
+      --s1: #4fae7d;
+      --s2: #7fb3d1;
+      --s3: #e08478;
+      --s4: #c2a068;
+      --s5: #a295cc;
+      --s6: #d4b35e;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  html { color-scheme: light dark; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .wrap {
+    max-width: 68rem;
+    margin: 0 auto;
+    padding: var(--gap);
+  }
+
+  header {
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 0.75rem;
+    margin-bottom: var(--gap);
+  }
+
+  h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    margin: 0;
+  }
+
+  header p {
+    margin: 0.35rem 0 0;
+    color: var(--ink-soft);
+    font-size: 0.9rem;
+    max-width: 46rem;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 17rem 1fr;
+    gap: var(--gap);
+    align-items: start;
+  }
+
+  @media (max-width: 52rem) {
+    .layout { grid-template-columns: 1fr; }
+  }
+
+  /* ---- controls ---- */
+
+  .controls {
+    background: var(--field);
+    border: 1px solid var(--rule);
+    padding: 1.1rem;
+  }
+
+  .controls h2 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 0 0 0.9rem;
+  }
+
+  label {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--ink-soft);
+    margin-bottom: 0.25rem;
+  }
+
+  select, input[type="text"], input[type="number"] {
+    width: 100%;
+    font: inherit;
+    font-size: 0.9rem;
+    padding: 0.4rem 0.5rem;
+    background: var(--paper);
+    color: var(--ink);
+    border: 1px solid var(--rule);
+    border-radius: 0;
+  }
+
+  .field { margin-bottom: 0.85rem; }
+
+  .years {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+
+  button {
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid transparent;
+    border-radius: 0;
+  }
+
+  .add {
+    width: 100%;
+    padding: 0.55rem;
+    margin-top: 0.3rem;
+    background: var(--safety);
+    color: #fff;
+  }
+
+  .add:hover { filter: brightness(1.08); }
+  .add:disabled { opacity: 0.55; cursor: progress; }
+
+  @media (prefers-color-scheme: dark) {
+    .add { color: #10130f; }
+  }
+
+  :is(button, select, input, a):focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  details.advanced { margin-top: 1rem; }
+  details.advanced summary {
+    cursor: pointer;
+    font-size: 0.82rem;
+    color: var(--ink-soft);
+  }
+  details.advanced .field { margin-top: 0.6rem; }
+
+  /* ---- chart ---- */
+
+  .panel { min-width: 0; }
+
+  figure { margin: 0; }
+
+  svg.chart { width: 100%; height: auto; display: block; }
+
+  .grid-line { stroke: var(--rule); stroke-width: 1; }
+  .axis-text { fill: var(--ink-soft); font-size: 11px; }
+  .series-line { fill: none; stroke-width: 2; }
+  .series-dot { stroke: var(--paper); stroke-width: 1.5; }
+
+  .empty {
+    border: 1px dashed var(--rule);
+    padding: 3rem 1.5rem;
+    text-align: center;
+    color: var(--ink-soft);
+    font-size: 0.92rem;
+  }
+
+  .status {
+    font-size: 0.88rem;
+    padding: 0.6rem 0.8rem;
+    margin-bottom: 1rem;
+    border-left: 3px solid var(--s3);
+    background: var(--field);
+  }
+
+  /* ---- legend ---- */
+
+  ul.legend {
+    list-style: none;
+    margin: 1rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1rem;
+  }
+
+  ul.legend li {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.85rem;
+  }
+
+  .swatch {
+    width: 0.85rem;
+    height: 0.85rem;
+    flex: none;
+  }
+
+  .remove {
+    background: none;
+    color: var(--ink-soft);
+    padding: 0 0.2rem;
+    font-size: 1.05rem;
+    line-height: 1;
+  }
+
+  .remove:hover { color: var(--s3); }
+
+  /* ---- table ---- */
+
+  .table-scroll { overflow-x: auto; margin-top: 1.75rem; }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.86rem;
+  }
+
+  caption {
+    text-align: left;
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+    margin-bottom: 0.5rem;
+  }
+
+  th, td {
+    padding: 0.35rem 0.7rem 0.35rem 0;
+    text-align: right;
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+  }
+
+  th:first-child, td:first-child { text-align: left; }
+  thead th { font-weight: 600; border-bottom: 1px solid var(--ink); }
+
+  footer {
+    margin-top: 2.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--rule);
+    font-size: 0.82rem;
+    color: var(--ink-soft);
+  }
+
+  footer a { color: inherit; }
+
+  .visually-hidden {
+    position: absolute;
+    width: 1px; height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Injury rates by industry</h1>
+  <p>Nonfatal workplace injury and illness rates from the Bureau of Labor Statistics
+     Survey of Occupational Injuries and Illnesses. These are survey estimates for an
+     industry as a whole, not figures for any individual employer.</p>
+</header>
+
+<div class="layout">
+
+  <form class="controls" id="controls">
+    <h2>Add a line to the chart</h2>
+
+    <div class="field">
+      <label for="industry">Industry</label>
+      <select id="industry"></select>
+    </div>
+
+    <div class="field">
+      <label for="state">Area</label>
+      <select id="state">
+        <option value="00" selected>United States</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="ownership">Ownership</label>
+      <select id="ownership">
+        <option value="1" selected>Private industry</option>
+        <option value="0">All ownerships</option>
+        <option value="9">State and local government</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="measure">Measure</label>
+      <select id="measure">
+        <option value="3|1" selected>Total recordable cases — rate per 100 workers</option>
+        <option value="3|2">Days away, restriction or transfer — rate per 100</option>
+        <option value="3|3">Days away from work — rate per 100</option>
+        <option value="3|8">Other recordable cases — rate per 100</option>
+        <option value="6|1">Total recordable cases — number (thousands)</option>
+        <option value="0|1">Illnesses only — rate per 10,000 workers</option>
+      </select>
+    </div>
+
+    <div class="field years">
+      <div>
+        <label for="start">From</label>
+        <input type="number" id="start" value="2014" min="2014" max="2030" step="1">
+      </div>
+      <div>
+        <label for="end">To</label>
+        <input type="number" id="end" value="2024" min="2014" max="2030" step="1">
+      </div>
+    </div>
+
+    <button type="submit" class="add" id="add">Add to chart</button>
+
+    <details class="advanced">
+      <summary>Use a series ID directly</summary>
+      <div class="field">
+        <label for="rawid">BLS series ID</label>
+        <input type="text" id="rawid" placeholder="ISU00000000031100" autocomplete="off">
+      </div>
+      <button type="button" class="add" id="addraw">Add this series</button>
+    </details>
+  </form>
+
+  <div class="panel">
+    <div id="status" hidden class="status"></div>
+
+    <figure id="figure">
+      <div class="empty" id="empty">Pick an industry and add it to start the chart.</div>
+    </figure>
+
+    <ul class="legend" id="legend"></ul>
+
+    <div class="table-scroll" id="tableWrap" hidden>
+      <table id="table">
+        <caption id="tableCaption"></caption>
+        <thead><tr id="tableHead"></tr></thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  Source: U.S. Bureau of Labor Statistics, Survey of Occupational Injuries and Illnesses.
+  Figures are published roughly a year in arrears. Blank cells mean the estimate was not
+  published, usually because the sample was too small to report reliably.
+</footer>
+
+</div>
+
+<script>
+/* ---------------------------------------------------------------------------
+   Settings — change this one line after you deploy the Worker.
+--------------------------------------------------------------------------- */
+
+const WORKER_URL = "https://bls-injuries.YOUR-SUBDOMAIN.workers.dev";
+
+/* ------------------------------------------------------------------------ */
+
+const COLORS = ["--s1", "--s2", "--s3", "--s4", "--s5", "--s6"];
+const MAX_LINES = 6;
+
+const STATES = {
+  "00": "United States", "01": "Alabama", "02": "Alaska", "04": "Arizona",
+  "05": "Arkansas", "06": "California", "08": "Colorado", "09": "Connecticut",
+  "10": "Delaware", "11": "District of Columbia", "12": "Florida", "13": "Georgia",
+  "15": "Hawaii", "16": "Idaho", "17": "Illinois", "18": "Indiana", "19": "Iowa",
+  "20": "Kansas", "21": "Kentucky", "22": "Louisiana", "23": "Maine",
+  "24": "Maryland", "25": "Massachusetts", "26": "Michigan", "27": "Minnesota",
+  "28": "Mississippi", "29": "Missouri", "30": "Montana", "31": "Nebraska",
+  "32": "Nevada", "33": "New Hampshire", "34": "New Jersey", "35": "New Mexico",
+  "36": "New York", "37": "North Carolina", "38": "North Dakota", "39": "Ohio",
+  "40": "Oklahoma", "41": "Oregon", "42": "Pennsylvania", "44": "Rhode Island",
+  "45": "South Carolina", "46": "South Dakota", "47": "Tennessee", "48": "Texas",
+  "49": "Utah", "50": "Vermont", "51": "Virginia", "53": "Washington",
+  "54": "West Virginia", "55": "Wisconsin", "56": "Wyoming"
+};
+
+const MEASURE_UNITS = {
+  "3|1": "cases per 100 full-time workers",
+  "3|2": "cases per 100 full-time workers",
+  "3|3": "cases per 100 full-time workers",
+  "3|8": "cases per 100 full-time workers",
+  "6|1": "thousands of cases",
+  "0|1": "cases per 10,000 full-time workers"
+};
+
+let industries = [{ naics: "", label: "All industries", ss: "000", ind: "000000" }];
+let lines = [];
+
+const el = (id) => document.getElementById(id);
+
+/* ---- loading the industry list ---- */
+
+async function loadIndustries() {
+  try {
+    const res = await fetch("industries.json");
+    if (!res.ok) throw new Error("not found");
+    const data = await res.json();
+    if (Array.isArray(data.industries) && data.industries.length) {
+      industries = data.industries;
+    }
+  } catch (err) {
+    note("Only the all-industries total is available until industries.json is filled in. " +
+         "You can still add any series by its ID.");
+  }
+
+  const sel = el("industry");
+  sel.innerHTML = "";
+  for (const row of industries) {
+    const opt = document.createElement("option");
+    opt.value = row.ss + "|" + row.ind;
+    opt.textContent = row.naics ? `${row.label} (${row.naics})` : row.label;
+    opt.dataset.label = row.label;
+    opt.dataset.naics = row.naics || "";
+    sel.append(opt);
+  }
+
+  // Let another page link in with ?naics=236
+  const wanted = new URLSearchParams(location.search).get("naics");
+  if (wanted) {
+    const match = [...sel.options].find((o) => o.dataset.naics === wanted);
+    if (match) {
+      sel.value = match.value;
+      addFromForm();
+    } else {
+      note(`No industry in the list matches NAICS ${wanted}.`);
+    }
+  }
+}
+
+function buildStates() {
+  const sel = el("state");
+  sel.innerHTML = "";
+  for (const [code, name] of Object.entries(STATES)) {
+    const opt = document.createElement("option");
+    opt.value = code;
+    opt.textContent = name;
+    sel.append(opt);
+  }
+  sel.value = "00";
+}
+
+/* ---- fetching ---- */
+
+function note(message) {
+  const box = el("status");
+  box.textContent = message;
+  box.hidden = false;
+}
+
+function clearNote() {
+  el("status").hidden = true;
+}
+
+async function fetchSeries(seriesId, start, end) {
+  const url = `${WORKER_URL}/series?id=${encodeURIComponent(seriesId)}&start=${start}&end=${end}`;
+  const res = await fetch(url);
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.error || `Request failed (${res.status})`);
+  const series = body.series && body.series[0];
+  if (!series || !series.observations.length) {
+    throw new Error("BLS returned no data for that series. The combination may not be published.");
+  }
+  return series;
+}
+
+async function addLine(seriesId, label, unit) {
+  if (lines.length >= MAX_LINES) {
+    note(`The chart holds ${MAX_LINES} lines. Remove one before adding another.`);
+    return;
+  }
+  if (lines.some((l) => l.seriesId === seriesId)) {
+    note("That series is already on the chart.");
+    return;
+  }
+
+  const start = Number(el("start").value);
+  const end = Number(el("end").value);
+  if (!(start >= 2014 && end >= start)) {
+    note("Check the year range. SOII data on this basis begins in 2014.");
+    return;
+  }
+
+  const button = el("add");
+  button.disabled = true;
+  button.textContent = "Loading\u2026";
+
+  try {
+    const series = await fetchSeries(seriesId, start, end);
+    clearNote();
+    lines.push({
+      seriesId,
+      label,
+      unit,
+      color: COLORS[lines.length % COLORS.length],
+      observations: series.observations.filter((o) => o.value !== null)
+    });
+    render();
+  } catch (err) {
+    note(err.message);
+  } finally {
+    button.disabled = false;
+    button.textContent = "Add to chart";
+  }
+}
+
+function addFromForm() {
+  const industrySel = el("industry");
+  const chosen = industrySel.selectedOptions[0];
+  if (!chosen) return;
+
+  const [ss, ind] = industrySel.value.split("|");
+  const [dataType, caseType] = el("measure").value.split("|");
+  const area = el("ownership").value + el("state").value;
+  const seriesId = "ISU" + ss + ind + dataType + caseType + area;
+
+  const place = STATES[el("state").value];
+  const owner = el("ownership").selectedOptions[0].textContent;
+  const label = `${chosen.dataset.label} \u2014 ${place}, ${owner.toLowerCase()}`;
+
+  addLine(seriesId, label, MEASURE_UNITS[el("measure").value] || "");
+}
+
+/* ---- drawing ---- */
+
+function render() {
+  renderChart();
+  renderLegend();
+  renderTable();
+}
+
+function allYears() {
+  const years = new Set();
+  lines.forEach((l) => l.observations.forEach((o) => years.add(o.year)));
+  return [...years].sort((a, b) => a - b);
+}
+
+function renderChart() {
+  const figure = el("figure");
+  figure.innerHTML = "";
+
+  if (!lines.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = "Pick an industry and add it to start the chart.";
+    figure.append(empty);
+    return;
+  }
+
+  const W = 720, H = 380;
+  const pad = { top: 20, right: 20, bottom: 36, left: 52 };
+  const years = allYears();
+  const maxValue = Math.max(...lines.flatMap((l) => l.observations.map((o) => o.value)));
+  const yTop = niceCeiling(maxValue);
+
+  const xFor = (year) => {
+    if (years.length === 1) return (pad.left + W - pad.right) / 2;
+    const i = years.indexOf(year);
+    return pad.left + (i / (years.length - 1)) * (W - pad.left - pad.right);
+  };
+  const yFor = (value) =>
+    H - pad.bottom - (value / yTop) * (H - pad.top - pad.bottom);
+
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("class", "chart");
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label",
+    `Line chart comparing ${lines.length} series from ${years[0]} to ${years[years.length - 1]}. ` +
+    `The table below lists the same values.`);
+
+  const make = (tag, attrs) => {
+    const node = document.createElementNS(ns, tag);
+    for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+    return node;
+  };
+
+  // horizontal grid + y labels
+  const steps = 4;
+  for (let i = 0; i <= steps; i++) {
+    const value = (yTop / steps) * i;
+    const y = yFor(value);
+    svg.append(make("line", {
+      class: "grid-line", x1: pad.left, x2: W - pad.right, y1: y, y2: y
+    }));
+    const label = make("text", {
+      class: "axis-text", x: pad.left - 8, y: y + 4, "text-anchor": "end"
+    });
+    label.textContent = trim(value);
+    svg.append(label);
+  }
+
+  // x labels, thinned out if the range is long
+  const every = Math.ceil(years.length / 12);
+  years.forEach((year, i) => {
+    if (i % every !== 0 && i !== years.length - 1) return;
+    const label = make("text", {
+      class: "axis-text", x: xFor(year), y: H - pad.bottom + 18, "text-anchor": "middle"
+    });
+    label.textContent = year;
+    svg.append(label);
+  });
+
+  // the lines themselves
+  lines.forEach((line) => {
+    const stroke = `var(${line.color})`;
+    const d = line.observations
+      .map((o, i) => `${i ? "L" : "M"}${xFor(o.year).toFixed(1)},${yFor(o.value).toFixed(1)}`)
+      .join(" ");
+    svg.append(make("path", { class: "series-line", d, stroke }));
+
+    line.observations.forEach((o) => {
+      const dot = make("circle", {
+        class: "series-dot", cx: xFor(o.year), cy: yFor(o.value), r: 3.5, fill: stroke
+      });
+      const title = document.createElementNS(ns, "title");
+      title.textContent = `${line.label}, ${o.year}: ${o.value}`;
+      dot.append(title);
+      svg.append(dot);
+    });
+  });
+
+  const caption = document.createElement("figcaption");
+  caption.className = "visually-hidden";
+  caption.textContent = "Injury rate chart. Values are listed in the table below.";
+
+  figure.append(svg, caption);
+}
+
+function niceCeiling(value) {
+  if (value <= 0) return 1;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(value)));
+  return Math.ceil(value / (magnitude / 2)) * (magnitude / 2);
+}
+
+function trim(n) {
+  return Number(n.toFixed(2)).toString();
+}
+
+function renderLegend() {
+  const list = el("legend");
+  list.innerHTML = "";
+
+  lines.forEach((line, index) => {
+    const li = document.createElement("li");
+
+    const swatch = document.createElement("span");
+    swatch.className = "swatch";
+    swatch.style.background = `var(${line.color})`;
+    li.append(swatch);
+
+    const text = document.createElement("span");
+    text.textContent = line.label;
+    li.append(text);
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "remove";
+    remove.textContent = "\u00d7";
+    remove.setAttribute("aria-label", `Remove ${line.label}`);
+    remove.addEventListener("click", () => {
+      lines.splice(index, 1);
+      lines.forEach((l, i) => { l.color = COLORS[i % COLORS.length]; });
+      render();
+    });
+    li.append(remove);
+
+    list.append(li);
+  });
+}
+
+function renderTable() {
+  const wrap = el("tableWrap");
+  if (!lines.length) { wrap.hidden = true; return; }
+  wrap.hidden = false;
+
+  const years = allYears();
+  const units = [...new Set(lines.map((l) => l.unit))];
+  el("tableCaption").textContent = units.length === 1
+    ? `Values in ${units[0]}.`
+    : "Values use different units — check each row.";
+
+  const head = el("tableHead");
+  head.innerHTML = "";
+  head.append(cell("th", "Series"));
+  years.forEach((y) => head.append(cell("th", y)));
+
+  const body = el("tableBody");
+  body.innerHTML = "";
+  lines.forEach((line) => {
+    const row = document.createElement("tr");
+    row.append(cell("th", line.label));
+    const byYear = new Map(line.observations.map((o) => [o.year, o.value]));
+    years.forEach((y) => row.append(cell("td", byYear.has(y) ? byYear.get(y) : "\u2014")));
+    body.append(row);
+  });
+}
+
+function cell(tag, text) {
+  const node = document.createElement(tag);
+  if (tag === "th") node.scope = "col";
+  node.textContent = text;
+  return node;
+}
+
+/* ---- wiring ---- */
+
+el("controls").addEventListener("submit", (event) => {
+  event.preventDefault();
+  addFromForm();
+});
+
+el("addraw").addEventListener("click", () => {
+  const id = el("rawid").value.trim().toUpperCase();
+  if (!id) return;
+  addLine(id, id, "");
+});
+
+buildStates();
+loadIndustries();
+</script>
+</body>
+</html>

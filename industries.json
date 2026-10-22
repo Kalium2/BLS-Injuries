@@ -1,0 +1,12 @@
+{
+  "_about": "Maps NAICS codes to the supersector and industry codes BLS uses inside its injury series IDs. Generated from https://download.bls.gov/pub/time.series/is/is.series",
+  "_fields": {
+    "naics": "NAICS code as it appears in OSHA inspection records. Leave empty for totals.",
+    "label": "Plain-language industry name shown in the dropdown.",
+    "ss": "3-digit BLS supersector code.",
+    "ind": "6-digit BLS industry code."
+  },
+  "industries": [
+    { "naics": "", "label": "All industries", "ss": "000", "ind": "000000" }
+  ]
+}
