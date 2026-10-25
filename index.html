@@ -139,6 +139,11 @@
     margin-bottom: 0.25rem;
   }
 
+  .hint { font-weight: 400; color: var(--ink-soft); font-size: 0.74rem; }
+
+  select[multiple] { height: auto; padding: 0.2rem; }
+  select[multiple] option { padding: 0.15rem 0.3rem; }
+
   select, input[type="text"], input[type="number"] {
     width: 100%;
     font: inherit;
@@ -325,13 +330,13 @@
     <h2>Add a line to the chart</h2>
 
     <div class="field">
-      <label for="industry">Industry</label>
-      <select id="industry"></select>
+      <label for="industry">Industry <span class="hint">pick several with Ctrl / Cmd</span></label>
+      <select id="industry" multiple size="10"></select>
     </div>
 
     <div class="field">
-      <label for="area">Area</label>
-      <select id="area"></select>
+      <label for="area">Area <span class="hint">pick several with Ctrl / Cmd</span></label>
+      <select id="area" multiple size="6"></select>
     </div>
 
     <div class="field">
@@ -466,7 +471,7 @@ async function loadIndustries() {
       if (!match) code = code.slice(0, -1);
     }
     if (match) {
-      sel.value = match.value;
+      match.selected = true;
       addFromForm();
     } else {
       note(`No BLS industry covers NAICS ${wanted}.`);
@@ -548,15 +553,12 @@ function readRates(naics, measure, area, start, end) {
   return observations;
 }
 
-async function addLine(key, label, unit) {
-  if (lines.length >= MAX_LINES) {
-    note(`The chart holds ${MAX_LINES} lines. Remove one before adding another.`);
-    return;
-  }
-  if (lines.some((l) => l.key.naics === key.naics && l.key.measure === key.measure && l.key.area === key.area)) {
-    note("That series is already on the chart.");
-    return;
-  }
+function addFromForm() {
+  const industries = [...el("industry").selectedOptions];
+  const areas = [...el("area").selectedOptions];
+
+  if (!industries.length) { note("Pick at least one industry."); return; }
+  if (!areas.length) { note("Pick at least one area."); return; }
 
   const start = Number(el("start").value);
   const end = Number(el("end").value);
@@ -567,42 +569,58 @@ async function addLine(key, label, unit) {
     return;
   }
 
-  const button = el("add");
-  button.disabled = true;
-  button.textContent = "Loading\u2026";
+  const measureValue = el("measure").value;
+  const measure = measureValue.replace("|", "");
+  const measureLabel = el("measure").selectedOptions[0].textContent;
+  const unit = MEASURE_UNITS[measureValue] || "";
+  const nameArea = areas.length > 1 || areas[0].value !== "100";
 
-  try {
-    const observations = readRates(key.naics, key.measure, key.area, start, end);
-    clearNote();
-    lines.push({
-      key,
-      label,
-      unit,
-      color: COLORS[lines.length % COLORS.length],
-      observations
-    });
-    render();
-  } catch (err) {
-    note(err.message);
-  } finally {
-    button.disabled = false;
-    button.textContent = "Add to chart";
+  const added = [], already = [], missing = [];
+  let roomRanOut = 0;
+
+  for (const industry of industries) {
+    for (const area of areas) {
+      const naics = industry.dataset.naics || "all";
+      const key = { naics, measure, area: area.value };
+
+      if (lines.some((l) => l.key.naics === key.naics
+                         && l.key.measure === key.measure
+                         && l.key.area === key.area)) {
+        already.push(industry.dataset.label);
+        continue;
+      }
+      if (lines.length >= MAX_LINES) { roomRanOut++; continue; }
+
+      let observations;
+      try {
+        observations = readRates(naics, measure, area.value, start, end);
+      } catch (err) {
+        missing.push(`${industry.dataset.label} in ${areaNames[area.value] || area.value}`);
+        continue;
+      }
+
+      const label = `${industry.dataset.label} \u2014 ${measureLabel}`
+                  + (nameArea ? `, ${areaNames[area.value] || area.value}` : "");
+
+      lines.push({ key, label, unit, color: COLORS[lines.length % COLORS.length], observations });
+      added.push(label);
+    }
   }
-}
 
-function addFromForm() {
-  const industrySel = el("industry");
-  const chosen = industrySel.selectedOptions[0];
-  if (!chosen) return;
+  render();
 
-  const naics = chosen.dataset.naics || "all";
-  const measure = el("measure").value.replace("|", "");
-  const area = el("area").value;
-  const key = { naics, measure, area };
-  const areaLabel = area === "100" ? "" : `, ${areaNames[area] || area}`;
-  const label = `${chosen.dataset.label} \u2014 ${el("measure").selectedOptions[0].textContent}${areaLabel}`;
+  const problems = [];
+  if (roomRanOut) problems.push(`${roomRanOut} didn't fit — the chart holds ${MAX_LINES} lines`);
+  if (already.length) problems.push(`${already.length} already on the chart`);
+  if (missing.length) {
+    problems.push(missing.length === 1
+      ? `BLS publishes nothing for ${missing[0]}`
+      : `BLS publishes nothing for ${missing.length} of them (${missing.slice(0, 3).join("; ")}${missing.length > 3 ? "; …" : ""})`);
+  }
 
-  addLine(key, label, MEASURE_UNITS[el("measure").value] || "");
+  if (!added.length && problems.length) note(problems.join(". ") + ".");
+  else if (problems.length) note(`Added ${added.length}. ${problems.join(". ")}.`);
+  else clearNote();
 }
 
 /* ---- drawing ---- */
