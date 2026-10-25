@@ -305,22 +305,6 @@
     </div>
 
     <div class="field">
-      <label for="state">Area</label>
-      <select id="state">
-        <option value="00" selected>United States</option>
-      </select>
-    </div>
-
-    <div class="field">
-      <label for="ownership">Ownership</label>
-      <select id="ownership">
-        <option value="1" selected>Private industry</option>
-        <option value="0">All ownerships</option>
-        <option value="9">State and local government</option>
-      </select>
-    </div>
-
-    <div class="field">
       <label for="measure">Measure</label>
       <select id="measure">
         <option value="3|1" selected>Total recordable cases — rate per 100 workers</option>
@@ -345,14 +329,6 @@
 
     <button type="submit" class="add" id="add">Add to chart</button>
 
-    <details class="advanced">
-      <summary>Use a series ID directly</summary>
-      <div class="field">
-        <label for="rawid">BLS series ID</label>
-        <input type="text" id="rawid" placeholder="ISU00000000031100" autocomplete="off">
-      </div>
-      <button type="button" class="add" id="addraw">Add this series</button>
-    </details>
   </form>
 
   <div class="panel">
@@ -388,13 +364,12 @@
    Settings — change this one line after you deploy the Worker.
 --------------------------------------------------------------------------- */
 
-const WORKER_URL = "https://blm-api.lambertdaniel26.workers.dev";
-/* ------------------------------------------------------------------------ */
+const RATES_URL = "industry-rates.json";
 
 const COLORS = ["--s1", "--s2", "--s3", "--s4", "--s5", "--s6"];
 const MAX_LINES = 6;
 
-let areas = [{ code: "00", label: "United States" }];
+let rates = {};
 
 const MEASURE_UNITS = {
   "3|1": "cases per 100 full-time workers",
@@ -467,25 +442,15 @@ async function loadIndustries() {
   }
 }
 
-async function loadAreas() {
+async function loadRates() {
   try {
-    const res = await fetch("areas.json");
+    const res = await fetch(RATES_URL);
     if (!res.ok) throw new Error("not found");
     const data = await res.json();
-    if (Array.isArray(data.areas) && data.areas.length) areas = data.areas;
+    rates = data.rates || {};
   } catch (err) {
-    note("Only the national total is available until areas.json is filled in.");
+    note("Couldn't load industry-rates.json. Run rates-prep.html and put the file it makes next to this page.");
   }
-
-  const sel = el("state");
-  sel.innerHTML = "";
-  for (const area of areas) {
-    const opt = document.createElement("option");
-    opt.value = area.code;
-    opt.textContent = area.label;
-    sel.append(opt);
-  }
-  sel.value = "00";
 }
 
 /* ---- fetching ---- */
@@ -500,24 +465,25 @@ function clearNote() {
   el("status").hidden = true;
 }
 
-async function fetchSeries(seriesId, start, end) {
-  const url = `${WORKER_URL}/series?id=${encodeURIComponent(seriesId)}&start=${start}&end=${end}`;
-  const res = await fetch(url);
-  const body = await res.json();
-  if (!res.ok) throw new Error(body.error || `Request failed (${res.status})`);
-  const series = body.series && body.series[0];
-  if (!series || !series.observations.length) {
-    throw new Error("BLS returned no data for that series. The combination may not be published.");
+function readRates(naics, measure, start, end) {
+  const byYear = (rates[naics] || {})[measure];
+  if (!byYear) {
+    throw new Error("BLS doesn't publish this measure for that industry in private industry nationally.");
   }
-  return series;
+  const observations = Object.entries(byYear)
+    .map(([year, value]) => ({ year: Number(year), value }))
+    .filter((o) => o.year >= start && o.year <= end && o.value !== null)
+    .sort((a, b) => a.year - b.year);
+  if (!observations.length) throw new Error("No published values in that year range.");
+  return observations;
 }
 
-async function addLine(seriesId, label, unit) {
+async function addLine(key, label, unit) {
   if (lines.length >= MAX_LINES) {
     note(`The chart holds ${MAX_LINES} lines. Remove one before adding another.`);
     return;
   }
-  if (lines.some((l) => l.seriesId === seriesId)) {
+  if (lines.some((l) => l.key.naics === key.naics && l.key.measure === key.measure)) {
     note("That series is already on the chart.");
     return;
   }
@@ -534,14 +500,14 @@ async function addLine(seriesId, label, unit) {
   button.textContent = "Loading\u2026";
 
   try {
-    const series = await fetchSeries(seriesId, start, end);
+    const observations = readRates(key.naics, key.measure, start, end);
     clearNote();
     lines.push({
-      seriesId,
+      key,
       label,
       unit,
       color: COLORS[lines.length % COLORS.length],
-      observations: series.observations.filter((o) => o.value !== null)
+      observations
     });
     render();
   } catch (err) {
@@ -557,16 +523,12 @@ function addFromForm() {
   const chosen = industrySel.selectedOptions[0];
   if (!chosen) return;
 
-  const [ss, ind] = industrySel.value.split("|");
-  const [dataType, caseType] = el("measure").value.split("|");
-  const area = el("ownership").value + el("state").value;
-  const seriesId = "ISU" + ss + ind + dataType + caseType + area;
+  const naics = chosen.dataset.naics || "all";
+  const measure = el("measure").value.replace("|", "");
+  const key = { naics, measure };
+  const label = `${chosen.dataset.label} \u2014 ${el("measure").selectedOptions[0].textContent}`;
 
-  const place = el("state").selectedOptions[0].textContent;
-  const owner = el("ownership").selectedOptions[0].textContent;
-  const label = `${chosen.dataset.label} \u2014 ${place}, ${owner.toLowerCase()}`;
-
-  addLine(seriesId, label, MEASURE_UNITS[el("measure").value] || "");
+  addLine(key, label, MEASURE_UNITS[el("measure").value] || "");
 }
 
 /* ---- drawing ---- */
@@ -759,13 +721,7 @@ el("controls").addEventListener("submit", (event) => {
   addFromForm();
 });
 
-el("addraw").addEventListener("click", () => {
-  const id = el("rawid").value.trim().toUpperCase();
-  if (!id) return;
-  addLine(id, id, "");
-});
-
-loadAreas();
+loadRates();
 loadIndustries();
 </script>
 </body>
