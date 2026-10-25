@@ -79,6 +79,26 @@
     margin: 0;
   }
 
+  nav.tools {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.6rem;
+    font-size: 0.88rem;
+  }
+  nav.tools a { color: var(--focus); }
+  nav.tools a[aria-current] { color: var(--ink-soft); text-decoration: none; cursor: default; }
+
+  .clear {
+    width: 100%;
+    padding: 0.5rem;
+    margin-top: 0.45rem;
+    background: none;
+    color: var(--ink-soft);
+    border: 1px solid var(--rule);
+  }
+  .clear:hover { color: var(--ink); }
+  .clear:disabled { opacity: 0.45; cursor: default; }
+
   header p {
     margin: 0.35rem 0 0;
     color: var(--ink-soft);
@@ -292,6 +312,10 @@
   <p>Nonfatal workplace injury and illness rates from the Bureau of Labor Statistics
      Survey of Occupational Injuries and Illnesses. These are survey estimates for an
      industry as a whole, not figures for any individual employer.</p>
+  <nav class="tools">
+    <a href="index.html" aria-current="page">Industry rates</a>
+    <a href="underwriting.html">Establishment lookup</a>
+  </nav>
 </header>
 
 <div class="layout">
@@ -302,6 +326,11 @@
     <div class="field">
       <label for="industry">Industry</label>
       <select id="industry"></select>
+    </div>
+
+    <div class="field">
+      <label for="area">Area</label>
+      <select id="area"></select>
     </div>
 
     <div class="field">
@@ -328,6 +357,7 @@
     </div>
 
     <button type="submit" class="add" id="add">Add to chart</button>
+    <button type="button" class="clear" id="clear" disabled>Clear chart</button>
 
   </form>
 
@@ -370,6 +400,7 @@ const COLORS = ["--s1", "--s2", "--s3", "--s4", "--s5", "--s6"];
 const MAX_LINES = 6;
 
 let rates = {};
+let areaNames = {};
 
 const MEASURE_UNITS = {
   "3|1": "cases per 100 full-time workers",
@@ -442,12 +473,26 @@ async function loadIndustries() {
   }
 }
 
+function buildAreas() {
+  const sel = el("area");
+  sel.innerHTML = "";
+  const codes = Object.keys(areaNames).sort((a, b) =>
+    (a === "100" ? -1 : b === "100" ? 1 : (areaNames[a] || "").localeCompare(areaNames[b] || "")));
+  for (const code of codes) {
+    sel.append(Object.assign(document.createElement("option"),
+      { value: code, textContent: areaNames[code] || code }));
+  }
+  if (areaNames["100"]) sel.value = "100";
+}
+
 async function loadRates() {
   try {
     const res = await fetch(RATES_URL);
     if (!res.ok) throw new Error("not found");
     const data = await res.json();
     rates = data.rates || {};
+    areaNames = data.areas || {};
+    buildAreas();
   } catch (err) {
     note("Couldn't load industry-rates.json. Run rates-prep.html and put the file it makes next to this page.");
   }
@@ -465,10 +510,12 @@ function clearNote() {
   el("status").hidden = true;
 }
 
-function readRates(naics, measure, start, end) {
-  const byYear = (rates[naics] || {})[measure];
+function readRates(naics, measure, area, start, end) {
+  const byArea = (rates[naics] || {})[measure] || {};
+  const byYear = byArea[area];
   if (!byYear) {
-    throw new Error("BLS doesn't publish this measure for that industry in private industry nationally.");
+    throw new Error(`BLS publishes no figure for that industry and measure in ${areaNames[area] || area}. `
+      + "State estimates are suppressed where the sample is too small.");
   }
   const observations = Object.entries(byYear)
     .map(([year, value]) => ({ year: Number(year), value }))
@@ -483,7 +530,7 @@ async function addLine(key, label, unit) {
     note(`The chart holds ${MAX_LINES} lines. Remove one before adding another.`);
     return;
   }
-  if (lines.some((l) => l.key.naics === key.naics && l.key.measure === key.measure)) {
+  if (lines.some((l) => l.key.naics === key.naics && l.key.measure === key.measure && l.key.area === key.area)) {
     note("That series is already on the chart.");
     return;
   }
@@ -500,7 +547,7 @@ async function addLine(key, label, unit) {
   button.textContent = "Loading\u2026";
 
   try {
-    const observations = readRates(key.naics, key.measure, start, end);
+    const observations = readRates(key.naics, key.measure, key.area, start, end);
     clearNote();
     lines.push({
       key,
@@ -525,8 +572,10 @@ function addFromForm() {
 
   const naics = chosen.dataset.naics || "all";
   const measure = el("measure").value.replace("|", "");
-  const key = { naics, measure };
-  const label = `${chosen.dataset.label} \u2014 ${el("measure").selectedOptions[0].textContent}`;
+  const area = el("area").value;
+  const key = { naics, measure, area };
+  const areaLabel = area === "100" ? "" : `, ${areaNames[area] || area}`;
+  const label = `${chosen.dataset.label} \u2014 ${el("measure").selectedOptions[0].textContent}${areaLabel}`;
 
   addLine(key, label, MEASURE_UNITS[el("measure").value] || "");
 }
@@ -534,6 +583,7 @@ function addFromForm() {
 /* ---- drawing ---- */
 
 function render() {
+  el("clear").disabled = lines.length === 0;
   renderChart();
   renderLegend();
   renderTable();
@@ -715,6 +765,13 @@ function cell(tag, text) {
 }
 
 /* ---- wiring ---- */
+
+el("clear").addEventListener("click", () => {
+  lines = [];
+  clearNote();
+  render();
+  el("industry").focus();
+});
 
 el("controls").addEventListener("submit", (event) => {
   event.preventDefault();
