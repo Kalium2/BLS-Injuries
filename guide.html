@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data dictionary and refresh guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #15181c; --ink-soft: #5c6470; --paper: #fff; --field: #f1f3f1;
+    --rule: #ced3cd; --safety: #00703c; --alert: #b3362a; --focus: #1f5673;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #e8eae7; --ink-soft: #99a1a8; --paper: #16191b; --field: #1f2325;
+      --rule: #343a3c; --safety: #4fae7d; --alert: #e08478; --focus: #7fb3d1;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { color-scheme: light dark; scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.55;
+    font-variant-numeric: tabular-nums;
+  }
+  .wrap { max-width: 64rem; margin: 0 auto; padding: 1.5rem; }
+
+  header { border-bottom: 2px solid var(--ink); padding-bottom: .75rem; margin-bottom: 1.25rem; }
+  h1 { font-size: 1.5rem; font-weight: 600; margin: 0; letter-spacing: -.015em; }
+  header p { margin: .35rem 0 0; color: var(--ink-soft); font-size: .88rem; max-width: 46rem; }
+  nav.tools { display: flex; gap: 1rem; margin-top: .6rem; font-size: .88rem; flex-wrap: wrap; }
+  nav.tools a { color: var(--focus); }
+  nav.tools a[aria-current] { color: var(--ink-soft); text-decoration: none; cursor: default; }
+
+  .layout { display: grid; grid-template-columns: 14rem 1fr; gap: 2rem; align-items: start; }
+  @media (max-width: 54rem) { .layout { grid-template-columns: 1fr; } }
+
+  .toc { position: sticky; top: 1rem; font-size: .88rem; }
+  @media (max-width: 54rem) { .toc { position: static; } }
+  .toc h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em;
+            color: var(--ink-soft); margin: 0 0 .5rem; }
+  .toc ol { list-style: none; margin: 0; padding: 0; }
+  .toc li { margin-bottom: .3rem; }
+  .toc a { color: var(--ink); text-decoration: none; }
+  .toc a:hover { color: var(--focus); text-decoration: underline; }
+
+  main { min-width: 0; }
+  section { margin-bottom: 2.75rem; scroll-margin-top: 1rem; }
+  h2 { font-size: 1.2rem; font-weight: 600; margin: 0 0 .6rem; letter-spacing: -.01em;
+       padding-bottom: .3rem; border-bottom: 1px solid var(--rule); }
+  h3 { font-size: .95rem; font-weight: 600; margin: 1.4rem 0 .4rem; }
+  p { margin: .7rem 0; max-width: 46rem; }
+  ol.steps, ul.plain { max-width: 46rem; padding-left: 1.3rem; }
+  ol.steps li, ul.plain li { margin-bottom: .4rem; }
+
+  table { border-collapse: collapse; width: 100%; font-size: .87rem; margin: .9rem 0; }
+  th, td { padding: .4rem .8rem .4rem 0; text-align: left; border-bottom: 1px solid var(--rule);
+           vertical-align: top; }
+  thead th { font-weight: 600; border-bottom: 1px solid var(--ink); }
+  .table-scroll { overflow-x: auto; }
+
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .86em;
+         background: var(--field); padding: .1rem .3rem; }
+  pre { background: var(--field); border: 1px solid var(--rule); padding: .8rem 1rem;
+        overflow-x: auto; font-size: .84rem; line-height: 1.5; max-width: 46rem; }
+  pre code { background: none; padding: 0; }
+
+  .note { border-left: 3px solid var(--safety); background: var(--field);
+          padding: .7rem 1rem; margin: 1rem 0; font-size: .9rem; max-width: 46rem; }
+  .warn { border-left-color: var(--alert); }
+
+  footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+           font-size: .82rem; color: var(--ink-soft); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Data dictionary and refresh guide</h1>
+  <p>What each file holds, where the numbers come from, and how to bring in a new year of data.</p>
+  <nav class="tools">
+    <a href="index.html">Industry rates</a>
+    <a href="underwriting.html">Establishment lookup</a>
+    <a href="guide.html" aria-current="page">Guide</a>
+  </nav>
+</header>
+
+<div class="layout">
+
+  <aside class="toc">
+    <h2>Contents</h2>
+    <ol>
+      <li><a href="#what">What this is</a></li>
+      <li><a href="#industries">industries.json</a></li>
+      <li><a href="#rates">industry-rates.json</a></li>
+      <li><a href="#manifest">data/manifest.json</a></li>
+      <li><a href="#ita">data/ita-XX-YYYY.json</a></li>
+      <li><a href="#computed">How rates are computed</a></li>
+      <li><a href="#refresh-bls">Refreshing BLS rates</a></li>
+      <li><a href="#refresh-osha">Refreshing OSHA data</a></li>
+      <li><a href="#upload">Uploading and verifying</a></li>
+      <li><a href="#trouble">Troubleshooting</a></li>
+    </ol>
+  </aside>
+
+  <main>
+
+  <section id="what">
+    <h2>What this is</h2>
+    <p>Two lookup tools published from one GitHub repository, backed by two federal
+       datasets that each do a job the other cannot.</p>
+    <p>BLS tells you what an <strong>industry</strong> averages. It is a survey, so it can
+       never describe one employer. OSHA tells you what a <strong>specific
+       establishment</strong> filed. It is not a representative sample, so it can never
+       describe an industry. The tools keep those roles separate.</p>
+
+    <div class="table-scroll">
+    <table>
+      <thead><tr><th>File</th><th>Kind</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td><code>index.html</code></td><td>Page</td><td>Industry injury rates by NAICS subsector, area and year. Draws up to six comparison lines.</td></tr>
+        <tr><td><code>underwriting.html</code></td><td>Page</td><td>Establishment lookup: search a business, see its own rates against its industry.</td></tr>
+        <tr><td><code>guide.html</code></td><td>Page</td><td>This document.</td></tr>
+        <tr><td><code>industries.json</code></td><td>Data</td><td>NAICS code to BLS code lookup. 96 subsectors.</td></tr>
+        <tr><td><code>industry-rates.json</code></td><td>Data</td><td>BLS industry averages, national and by state.</td></tr>
+        <tr><td><code>data/manifest.json</code></td><td>Data</td><td>Which states and years of establishment data exist.</td></tr>
+        <tr><td><code>data/ita-XX-YYYY.json</code></td><td>Data</td><td>Establishment filings, one file per state per year.</td></tr>
+        <tr><td><code>prep.html</code></td><td>Converter</td><td>Run locally. Turns OSHA's national CSVs into the <code>data</code> folder.</td></tr>
+        <tr><td><code>rates-prep.html</code></td><td>Converter</td><td>Run locally. Turns BLS's 241 MB file into <code>industry-rates.json</code>.</td></tr>
+        <tr><td><code>bls-injuries-worker.js</code>, <code>wrangler.toml</code></td><td>Retired</td><td>A Cloudflare Worker that proxied the BLS API. Kept as a record; nothing uses it.</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <p>The converters run from your own computer by double-clicking. The large government
+       files never leave your machine.</p>
+  </section>
+
+  <section id="industries">
+    <h2>industries.json</h2>
+    <p>Maps a NAICS code to the codes BLS buries inside its series identifiers. Built once
+       from BLS's <code>is.series</code> file; only needs rebuilding if BLS restructures its
+       industry coding, which is rare.</p>
+
+    <div class="table-scroll">
+    <table>
+      <thead><tr><th>Field</th><th>Example</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>naics</code></td><td><code>236</code></td><td>NAICS subsector. Empty string for the all-industries total.</td></tr>
+        <tr><td><code>label</code></td><td>Construction of buildings</td><td>Plain-language name shown in dropdowns.</td></tr>
+        <tr><td><code>ss</code></td><td><code>CON</code></td><td>BLS supersector code. Letters, not digits.</td></tr>
+        <tr><td><code>ind</code></td><td><code>236000</code></td><td>BLS industry code, six digits, NAICS right-padded with zeros.</td></tr>
+        <tr><td><code>group</code></td><td>Construction</td><td>Sector heading used to group the dropdown.</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <p>Coverage is 96 NAICS subsectors — the three-digit level. OSHA records carry six-digit
+       codes, and both pages walk a code up to the nearest published level, so
+       <code>238110</code> resolves to specialty trade contractors on its own.</p>
+    <p>BLS does not publish private-industry rates for the six public administration
+       subsectors (921 to 926) or for management of companies (551). Those appear in this
+       file but have no matching rates.</p>
+  </section>
+
+  <section id="rates">
+    <h2>industry-rates.json</h2>
+    <p>BLS Survey of Occupational Injuries and Illnesses. Private industry only, rates per
+       100 full-time workers. Covers 2014 onward.</p>
+    <p>Structure nests four levels deep:</p>
+<pre><code>rates → NAICS → measure → area → year → value</code></pre>
+    <p>So <code>rates["236"]["31"]["106"]["2024"]</code> is the 2024 total recordable case
+       rate for building construction in California.</p>
+
+    <h3>Top-level keys</h3>
+    <div class="table-scroll">
+    <table>
+      <thead><tr><th>Key</th><th>Contents</th></tr></thead>
+      <tbody>
+        <tr><td><code>source</code></td><td>Which BLS file it came from.</td></tr>
+        <tr><td><code>basis</code></td><td>Ownership and rate basis.</td></tr>
+        <tr><td><code>measures</code></td><td>Measure code to label.</td></tr>
+        <tr><td><code>areas</code></td><td>Area code to BLS area name. Fills the Area dropdown.</td></tr>
+        <tr><td><code>stateAreas</code></td><td>Postal code to area code, e.g. <code>CA</code> to <code>106</code>. Lets the lookup page find a state's own rate.</td></tr>
+        <tr><td><code>rates</code></td><td>The values.</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>Measure codes</h3>
+    <p>Two characters: BLS data type, then case type. All current entries are data type 3,
+       rates per 100 full-time workers.</p>
+    <div class="table-scroll">
+    <table>
+      <thead><tr><th>Code</th><th>Measure</th></tr></thead>
+      <tbody>
+        <tr><td><code>31</code></td><td>Total recordable cases</td></tr>
+        <tr><td><code>32</code></td><td>Days away, restriction or transfer (DART)</td></tr>
+        <tr><td><code>33</code></td><td>Days away from work</td></tr>
+        <tr><td><code>34</code></td><td>Job transfer or restriction only</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p><code>33</code> and <code>34</code> sum to <code>32</code>. The tools use
+       <code>31</code> and <code>32</code>.</p>
+
+    <h3>Area codes</h3>
+    <p>Three digits: a leading <code>1</code> for private industry, then BLS's own two-digit
+       area number. These are <strong>not</strong> FIPS codes and cannot be derived — they
+       come from BLS's <code>is.area</code> file. <code>100</code> is national.</p>
+
+    <div class="note">
+      State estimates are suppressed where a state's sample is too thin, and published at
+      coarser industry detail than national figures. Gaps are expected; the lookup page
+      falls back to national when a state figure is missing.
+    </div>
+  </section>
+
+  <section id="manifest">
+    <h2>data/manifest.json</h2>
+    <p>The index the lookup page reads first. It lists which states exist and which years
+       each one has, so the page can populate the dropdown without downloading anything.</p>
+<pre><code>{
+  "states": {
+    "AK": ["2016", "2017", "2018"],
+    "AL": ["2016", "2017", "2018"]
+  }
+}</code></pre>
+    <p>This file is the single source of truth for what the page offers. Remove a state here
+       and it disappears from the dropdown, whether or not its data files are still present.
+       Add one without uploading its files and it will appear but fail to load.</p>
+    <p>It must sit inside the <code>data</code> folder, not at the repo root.</p>
+    <div class="note warn">
+      It is ordinary text and safe to edit by hand — useful for dropping territories or
+      stray codes after a conversion. Mind the JSON punctuation: entries are separated by
+      commas, and the last one must not have a trailing comma.
+    </div>
+  </section>
+
+  <section id="ita">
+    <h2>data/ita-XX-YYYY.json</h2>
+    <p>OSHA Form 300A establishment filings, one file per state per year. <code>XX</code> is
+       the lowercase postal code, <code>YYYY</code> the calendar year the injuries
+       occurred.</p>
+    <p>Rows are stored as arrays rather than objects — the same 15 values in the same order
+       every time, which roughly halves the file size.</p>
+<pre><code>{
+  "state": "CA",
+  "year": "2024",
+  "fields": ["year", "name", "address", ...],
+  "rows": [["2024", "ACME STEEL", "12 MAIN ST", ...]]
+}</code></pre>
+
+    <div class="table-scroll">
+    <table>
+      <thead><tr><th>#</th><th>Field</th><th>Source column</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>0</td><td><code>year</code></td><td><code>year_filing_for</code></td><td>Calendar year of the injuries, not of filing. Forced to four digits.</td></tr>
+        <tr><td>1</td><td><code>name</code></td><td><code>establishment_name</code></td><td>The location's name. Not validated by OSHA.</td></tr>
+        <tr><td>2</td><td><code>address</code></td><td><code>street_address</code></td><td>Not standardised by OSHA.</td></tr>
+        <tr><td>3</td><td><code>city</code></td><td><code>city</code></td><td></td></tr>
+        <tr><td>4</td><td><code>state</code></td><td><code>state</code></td><td>Whatever the filer typed, including typos and foreign codes.</td></tr>
+        <tr><td>5</td><td><code>zip</code></td><td><code>zip_code</code></td><td>Trimmed to five digits when matching.</td></tr>
+        <tr><td>6</td><td><code>naics</code></td><td><code>naics_code</code></td><td>Six-digit, self-reported.</td></tr>
+        <tr><td>7</td><td><code>employees</code></td><td><code>annual_average_employees</code></td><td>Annual average headcount.</td></tr>
+        <tr><td>8</td><td><code>hours</code></td><td><code>total_hours_worked</code></td><td>All employees, the year. Denominator for both rates.</td></tr>
+        <tr><td>9</td><td><code>deaths</code></td><td><code>total_deaths</code></td><td>Form 300A column G.</td></tr>
+        <tr><td>10</td><td><code>dafw</code></td><td><code>total_dafw_cases</code></td><td>Column H — days away from work.</td></tr>
+        <tr><td>11</td><td><code>djtr</code></td><td><code>total_djtr_cases</code></td><td>Column I — job transfer or restriction.</td></tr>
+        <tr><td>12</td><td><code>other</code></td><td><code>total_other_cases</code></td><td>Column J — other recordable.</td></tr>
+        <tr><td>13</td><td><code>tcr</code></td><td>computed</td><td>Total case rate.</td></tr>
+        <tr><td>14</td><td><code>dart</code></td><td>computed</td><td>DART rate.</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <p>Dropped during conversion: <code>industry_description</code> (long text, repeated on
+       every row, and derivable from NAICS), <code>establishment_type</code>,
+       <code>size</code>, <code>company_name</code>, <code>ein</code>, and the day-count
+       columns K and L. Add them back by editing the <code>OUT</code> list near the top of
+       <code>prep.html</code>.</p>
+
+    <div class="note">
+      OSHA's own <code>establishment_id</code> is deliberately not carried. It is reissued
+      when a filer recreates a profile in a later year, so it cannot track one location over
+      time. The pages group on normalised name, state, ZIP and street number instead.
+    </div>
+  </section>
+
+  <section id="computed">
+    <h2>How rates are computed, and what they can't tell you</h2>
+    <p>Both rates use OSHA's published formula. The 200,000 is 100 full-time workers at
+       2,000 hours a year, which is what puts an establishment on the same basis as a BLS
+       industry figure.</p>
+<pre><code>Total case rate = (H + I + J) × 200,000 ÷ hours worked
+
+DART rate       = (H + I)     × 200,000 ÷ hours worked</code></pre>
+    <p>Where H is days-away cases, I is job-transfer or restriction cases, and J is other
+       recordable cases. Both are computed at conversion time and stored, so the pages do no
+       arithmetic on the fly.</p>
+
+    <h3>Limits that matter when someone acts on a number</h3>
+    <ul class="plain">
+      <li><strong>OSHA validates almost nothing.</strong> Names, addresses, NAICS codes,
+          headcounts and case counts are all stored as typed. A mistyped hours figure moves
+          a rate by an order of magnitude. The lookup page flags anything implying under 800
+          or over 3,200 hours per employee per year, but a plausible-looking wrong number
+          passes.</li>
+      <li><strong>Absence is not a clean record.</strong> Reporting is required only above
+          certain size and industry thresholds, so most employers never file. An empty
+          search result means no data, not no injuries.</li>
+      <li><strong>Matching is fuzzy by necessity.</strong> There is no shared identifier
+          between a submission and an OSHA filing, so the page ranks candidates by name
+          similarity and leaves the choice to you. Confirm the address.</li>
+      <li><strong>NAICS is not a class code.</strong> The two systems do not correspond, and
+          one NAICS subsector can span several classes with very different hazards. Nothing
+          here determines a classification.</li>
+      <li><strong>Recordables are not claims.</strong> OSHA recordability and workers'
+          compensation compensability are different tests that overlap without matching.</li>
+      <li><strong>The datasets end in different years.</strong> BLS runs about a year behind,
+          so the most recent establishment year may have no industry figure to compare
+          against yet. The ratio shows a dash rather than guessing.</li>
+    </ul>
+  </section>
+
+  <section id="refresh-bls">
+    <h2>Refreshing the BLS industry rates</h2>
+    <p>Once a year, after BLS publishes. The 2024 figures came out in January 2026, so
+       expect roughly that timing. About twenty minutes, most of it downloading.</p>
+    <ol class="steps">
+      <li>Go to <code>download.bls.gov/pub/time.series/is/</code> in a browser.</li>
+      <li>Download <strong>is.data.1.AllData</strong>. Around 241 MB.</li>
+      <li>Download <strong>is.area</strong> from the same page. 10 KB, instant.</li>
+      <li>Open <code>rates-prep.html</code> by double-clicking it on your own computer. It
+          should show <strong>two</strong> file boxes; if it shows one, you have an old copy.</li>
+      <li>Select both files and press <strong>Extract</strong>. A few minutes.</li>
+      <li>Save the result as <code>industry-rates.json</code> and replace the one in the repo.</li>
+    </ol>
+    <p>The page reads area names from <code>is.area</code> rather than assuming them, which
+       matters because BLS area codes are not FIPS and cannot be guessed.</p>
+    <p>Nothing else changes. <code>industries.json</code> only needs rebuilding if BLS
+       restructures its industry coding.</p>
+    <div class="note">
+      You'll know it worked when the Area dropdown on the chart page lists states. If it is
+      empty, the old file is still in place.
+    </div>
+  </section>
+
+  <section id="refresh-osha">
+    <h2>Refreshing the OSHA establishment data</h2>
+    <p>Once a year. Employers file between January and March for the previous calendar year,
+       and OSHA updates the published files quarterly, so a refresh any time from mid-year
+       onward captures a reasonably complete year.</p>
+    <ol class="steps">
+      <li>Go to <code>osha.gov/itadata</code> and download the <strong>Form 300A
+          summary</strong> files for whichever years you want. Each arrives as a
+          <code>.zip</code>.</li>
+      <li><strong>Unzip them.</strong> The converter reads <code>.csv</code>, not
+          <code>.zip</code>.</li>
+      <li>Open <code>prep.html</code> by double-clicking it on your own computer.</li>
+      <li>Select all the CSVs at once. One pass handles every year.</li>
+      <li>Type <code>ALL</code> in the state box to keep every state, or a single postal code
+          for one.</li>
+      <li>Leave the exclusion box as <code>WA,OH,WY,ND</code> — monopolistic fund states with
+          no private market. Add <code>PR,VI</code> to drop those territories too.</li>
+      <li>Press <strong>Prepare</strong>. Several minutes for the full national set.</li>
+      <li>Press <strong>Build one zip with all states</strong>. Compression takes a few more
+          minutes and shows a percentage.</li>
+      <li>Unzip the result. It contains a <code>data</code> folder with every state file and
+          the manifest already inside.</li>
+    </ol>
+    <p>The per-state buttons underneath rebuild a single state without redoing everything —
+       useful when only one or two states need updating.</p>
+    <div class="note warn">
+      Two things that reliably go wrong. Leaving the state box on <code>ALL</code> when you
+      meant one state produces files far larger than GitHub's 25 MB web upload limit. And
+      some extraction tools add a wrapper layer, leaving <code>data/data/</code>; the files
+      must sit exactly one level down.
+    </div>
+  </section>
+
+  <section id="upload">
+    <h2>Uploading and verifying</h2>
+    <p>Use <strong>GitHub Desktop</strong>, not the website. The web uploader caps files at
+       25 MB and struggles past about a hundred at once; a full refresh is roughly 470
+       files.</p>
+    <ol class="steps">
+      <li>In GitHub Desktop, <strong>Repository → Show in Explorer</strong>. That opens the
+          repo folder on your PC.</li>
+      <li>Copy the new <code>data</code> folder in, replacing the old one. Put
+          <code>industry-rates.json</code> at the root alongside the HTML files.</li>
+      <li>Write a summary saying what changed and which states you excluded — in a year you
+          will want to know whether a missing state was deliberate.</li>
+      <li><strong>Commit to main</strong>, then <strong>Push origin</strong>.</li>
+      <li>Wait a minute for GitHub Pages to rebuild.</li>
+    </ol>
+
+    <p>The folder layout the pages expect:</p>
+<pre><code>index.html
+underwriting.html
+guide.html
+industries.json
+industry-rates.json
+data/
+  manifest.json
+  ita-ak-2016.json
+  ...</code></pre>
+
+    <h3>Four checks, in order</h3>
+    <div class="table-scroll">
+    <table>
+      <thead><tr><th>Check</th><th>Where</th><th>If it fails</th></tr></thead>
+      <tbody>
+        <tr><td>Industry dropdown fills</td><td>Chart page</td><td><code>industries.json</code> missing from the root</td></tr>
+        <tr><td>Area dropdown lists states</td><td>Chart page</td><td><code>industry-rates.json</code> is the old national-only version</td></tr>
+        <tr><td>A line draws when you add one</td><td>Chart page</td><td>Year range outside what the file covers</td></tr>
+        <tr><td>State dropdown lists states</td><td>Lookup page</td><td><code>data/manifest.json</code> missing, or the folder is nested wrong</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>Then search a business you know and confirm the address matches before trusting
+       anything on the screen.</p>
+  </section>
+
+  <section id="trouble">
+    <h2>Troubleshooting</h2>
+    <div class="table-scroll">
+    <table>
+      <thead><tr><th>What you see</th><th>What it means</th></tr></thead>
+      <tbody>
+        <tr><td><strong>There isn't a GitHub Pages site here</strong></td><td>The site isn't built or isn't enabled. Often just a rebuild in progress after a rename — wait a minute.</td></tr>
+        <tr><td><strong>404 — File not found</strong> (with the parrot)</td><td>The site exists, that file doesn't. Usually a filename mismatch: a capital letter, or an extension lost on download. Paths are case-sensitive.</td></tr>
+        <tr><td><strong>NetworkError when attempting to fetch resource</strong></td><td>The request never reached a server. A wrong address or a missing file.</td></tr>
+        <tr><td><strong>Couldn't read data/manifest.json</strong></td><td>The <code>data</code> folder isn't uploaded, is nested one level too deep, or the manifest sits at the root.</td></tr>
+        <tr><td><strong>Area dropdown empty</strong></td><td><code>industry-rates.json</code> is the older national-only version. Re-run <code>rates-prep.html</code> with <code>is.area</code>.</td></tr>
+        <tr><td><strong>BLS publishes no figure for that industry and measure</strong></td><td>A genuine gap, not a fault. State estimates are suppressed where the sample is thin.</td></tr>
+        <tr><td><strong>Reported hours work out at N per employee</strong></td><td>The filer's numbers are implausible. Treat the rates as unreliable and verify before using them.</td></tr>
+        <tr><td><strong>No match</strong> on a search</td><td>Most likely the employer is below OSHA's reporting threshold and never filed. Try fewer words, or drop the city filter.</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>A note on BLS's API</h3>
+    <p>An earlier version of this project called <code>api.bls.gov</code> live. It returned
+       <code>429 Too Many Requests</code> persistently, from a Cloudflare Worker and from a
+       home connection alike. That is why the data is downloaded once a year and read from
+       this repo instead. If anyone suggests reconnecting it, this is the reason not to: the
+       figures change annually, and a live call adds a way for the tool to fail at the moment
+       someone is using it.</p>
+
+    <h3>Where this goes next</h3>
+    <p>Everything here downloads a whole state into the browser to search it. That ceiling is
+       reached when you want OSHA's Form 300/301 case detail, which carries occupation codes
+       and injury mechanisms for the class-fit work. At that point the data wants a real
+       database — Cloudflare D1 — and the matching moves out of the page and into a Worker.
+       Not before.</p>
+  </section>
+
+  </main>
+</div>
+
+<footer>
+  Sources: U.S. Bureau of Labor Statistics, Survey of Occupational Injuries and Illnesses.
+  U.S. Occupational Safety and Health Administration, Injury Tracking Application.
+</footer>
+
+</div>
+</body>
+</html>

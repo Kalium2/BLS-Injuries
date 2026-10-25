@@ -315,6 +315,7 @@
   <nav class="tools">
     <a href="index.html" aria-current="page">Industry rates</a>
     <a href="underwriting.html">Establishment lookup</a>
+    <a href="guide.html">Guide</a>
   </nav>
 </header>
 
@@ -348,11 +349,11 @@
     <div class="field years">
       <div>
         <label for="start">From</label>
-        <input type="number" id="start" value="2014" min="2014" max="2030" step="1">
+        <input type="number" id="start" value="2016" step="1">
       </div>
       <div>
         <label for="end">To</label>
-        <input type="number" id="end" value="2024" min="2014" max="2030" step="1">
+        <input type="number" id="end" value="2024" step="1">
       </div>
     </div>
 
@@ -473,6 +474,27 @@ async function loadIndustries() {
   }
 }
 
+/* Read the first and last year present in the file, so the inputs stay
+   correct when BLS publishes another year. Defaults to starting at 2016,
+   which is where the establishment data begins, but earlier years remain
+   reachable because BLS publishes them. */
+function setYearBounds() {
+  const years = new Set();
+  for (const measures of Object.values(rates))
+    for (const areas of Object.values(measures))
+      for (const byYear of Object.values(areas))
+        for (const year of Object.keys(byYear)) years.add(Number(year));
+
+  if (!years.size) return;
+  const first = Math.min(...years), last = Math.max(...years);
+
+  const from = el("start"), to = el("end");
+  from.min = to.min = first;
+  from.max = to.max = last;
+  from.value = Math.max(first, 2016);
+  to.value = last;
+}
+
 function buildAreas() {
   const sel = el("area");
   sel.innerHTML = "";
@@ -493,6 +515,7 @@ async function loadRates() {
     rates = data.rates || {};
     areaNames = data.areas || {};
     buildAreas();
+    setYearBounds();
   } catch (err) {
     note("Couldn't load industry-rates.json. Run rates-prep.html and put the file it makes next to this page.");
   }
@@ -537,8 +560,10 @@ async function addLine(key, label, unit) {
 
   const start = Number(el("start").value);
   const end = Number(el("end").value);
-  if (!(start >= 2014 && end >= start)) {
-    note("Check the year range. SOII data on this basis begins in 2014.");
+  const first = Number(el("start").min) || 2014;
+  const last = Number(el("end").max) || new Date().getUTCFullYear();
+  if (!(start >= first && end >= start && start <= last)) {
+    note(`Check the year range. This file covers ${first} to ${last}.`);
     return;
   }
 
