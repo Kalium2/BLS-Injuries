@@ -28,6 +28,9 @@
   .wrap { max-width: 64rem; margin: 0 auto; padding: 1.5rem; }
   header { border-bottom: 2px solid var(--ink); padding-bottom: .75rem; margin-bottom: 1.25rem; }
   h1 { font-size: 1.4rem; font-weight: 600; margin: 0; letter-spacing: -.015em; }
+  nav.tools { display:flex; gap:1rem; margin-top:.6rem; font-size:.88rem; }
+  nav.tools a { color: var(--focus); }
+  nav.tools a[aria-current] { color: var(--ink-soft); text-decoration:none; cursor:default; }
   header p { margin: .35rem 0 0; color: var(--ink-soft); font-size: .88rem; max-width: 44rem; }
 
   .search { display: grid; grid-template-columns: 1fr 10rem 7rem auto; gap: .6rem; align-items: end; }
@@ -90,6 +93,10 @@
   <p>Finds a California location in OSHA's injury filings, works out its own injury rates,
      and sets them against the industry. For understanding a risk and checking class fit —
      not for pricing.</p>
+  <nav class="tools">
+    <a href="index.html">Industry rates</a>
+    <a href="underwriting.html" aria-current="page">Establishment lookup</a>
+  </nav>
 </header>
 
 <form class="search" id="search">
