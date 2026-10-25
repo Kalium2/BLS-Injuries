@@ -61,7 +61,7 @@
   }
 
   .wrap {
-    max-width: 68rem;
+    max-width: 76rem;
     margin: 0 auto;
     padding: var(--gap);
   }
@@ -108,12 +108,12 @@
 
   .layout {
     display: grid;
-    grid-template-columns: 17rem 1fr;
+    grid-template-columns: 23rem 1fr;
     gap: var(--gap);
     align-items: start;
   }
 
-  @media (max-width: 52rem) {
+  @media (max-width: 60rem) {
     .layout { grid-template-columns: 1fr; }
   }
 
@@ -139,10 +139,41 @@
     margin-bottom: 0.25rem;
   }
 
-  .hint { font-weight: 400; color: var(--ink-soft); font-size: 0.74rem; }
+  .hint {
+    display: block;
+    font-weight: 400;
+    color: var(--ink-soft);
+    font-size: 0.74rem;
+    margin-top: -0.1rem;
+  }
 
-  select[multiple] { height: auto; padding: 0.2rem; }
-  select[multiple] option { padding: 0.15rem 0.3rem; }
+  select[multiple] {
+    height: auto;
+    padding: 0.25rem;
+    font-size: 0.86rem;
+    line-height: 1.45;
+  }
+
+  select[multiple] option {
+    padding: 0.2rem 0.4rem;
+    text-overflow: ellipsis;
+  }
+
+  /* Browsers paint the selected row with the system highlight, which is a
+     bright cyan in dark mode. The gradient is the reliable way to override it. */
+  select[multiple] option:checked {
+    background: var(--safety) linear-gradient(0deg, var(--safety) 0%, var(--safety) 100%);
+    color: #fff;
+    font-weight: 500;
+  }
+
+  select[multiple] optgroup {
+    font-style: normal;
+    font-weight: 600;
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    padding-top: 0.3rem;
+  }
 
   select, input[type="text"], input[type="number"] {
     width: 100%;
@@ -331,7 +362,7 @@
 
     <div class="field">
       <label for="industry">Industry <span class="hint">pick several with Ctrl / Cmd</span></label>
-      <select id="industry" multiple size="10"></select>
+      <select id="industry" multiple size="12"></select>
     </div>
 
     <div class="field">
@@ -451,6 +482,7 @@ async function loadIndustries() {
     const opt = document.createElement("option");
     opt.value = row.ss + "|" + row.ind;
     opt.textContent = row.naics ? `${row.label} (${row.naics})` : row.label;
+    opt.title = opt.textContent;
     opt.dataset.label = row.label;
     opt.dataset.naics = row.naics || "";
     groups.get(key).append(opt);
@@ -506,8 +538,9 @@ function buildAreas() {
   const codes = Object.keys(areaNames).sort((a, b) =>
     (a === "100" ? -1 : b === "100" ? 1 : (areaNames[a] || "").localeCompare(areaNames[b] || "")));
   for (const code of codes) {
+    const label = areaNames[code] || code;
     sel.append(Object.assign(document.createElement("option"),
-      { value: code, textContent: areaNames[code] || code }));
+      { value: code, textContent: label, title: label }));
   }
   if (areaNames["100"]) sel.value = "100";
 }
