@@ -35,6 +35,7 @@
 
   .search { display: grid; grid-template-columns: 1fr 8rem 9rem 6.5rem auto; gap: .6rem; align-items: end; }
   @media (max-width: 50rem) { .search { grid-template-columns: 1fr 1fr; } }
+  select[multiple] { height:auto; }
   select { width:100%; font:inherit; font-size:.92rem; padding:.45rem .55rem; background:var(--paper); color:var(--ink); border:1px solid var(--rule); border-radius:0; }
   label { display: block; font-size: .8rem; font-weight: 500; color: var(--ink-soft); margin-bottom: .2rem; }
   input {
@@ -106,8 +107,8 @@
     <input type="text" id="q" placeholder="e.g. Pacific Steel" autocomplete="off">
   </div>
   <div id="stateField" class="hide">
-    <label for="state">State</label>
-    <select id="state"><option value="">All</option></select>
+    <label for="state">States <span style="font-weight:400">(up to 5)</span></label>
+    <select id="state" multiple size="5"></select>
   </div>
   <div>
     <label for="city">City (optional)</label>
@@ -140,9 +141,13 @@
 
 <script>
 /* ------------------------------------------------------------------ */
+/* Data lives in a folder of per-state, per-year files, listed in manifest.json.
+   Only the state you choose is downloaded. */
+const DATA_DIR = "data/";
+const MANIFEST_URL = DATA_DIR + "manifest.json";
+const YEARS_TO_LOAD = 3;
+const MAX_STATES = 5;          // most recent N years available for that state
 const RATES_URL = "industry-rates.json";
-const DATA_URL = "ita-ca.json";
-/* ------------------------------------------------------------------ */
 
 const SUFFIXES = new Set(["INC","INCORPORATED","LLC","LLP","LP","CORP","CORPORATION",
   "CO","COMPANY","LTD","LIMITED","THE","GROUP","HOLDINGS","USA","US"]);
@@ -155,6 +160,8 @@ let F = {};           // field name -> column position
 let entities = [];    // one per establishment, with a row per year
 let industries = [];
 let rates = {};
+let stateAreas = {};
+let areaNames = {};
 
 const el = (id) => document.getElementById(id);
 
@@ -252,6 +259,8 @@ function normalise(payload) {
   return records.map((record) => {
     const out = FIELDS.map((field) => at[field] === -1 ? "" : record[at[field]]);
     const i = (f) => FIELDS.indexOf(f);
+    const yr = parseInt(String(out[i("year")]).replace(/\D.*$/, ""), 10);
+    out[i("year")] = Number.isFinite(yr) ? String(yr) : "";
     const n = (f) => Number(String(out[i(f)]).replace(/[^0-9.\-]/g, "")) || 0;
     if (out[i("tcr")] === "" || out[i("tcr")] === null || out[i("tcr")] === undefined) {
       out[i("tcr")] = rate(n("dafw") + n("djtr") + n("other"), n("hours"));
@@ -263,53 +272,11 @@ function normalise(payload) {
   });
 }
 
+let manifest = {};
+let loadedStates = [];
+
 async function load() {
-  let payload;
-  try {
-    const res = await fetch(DATA_URL);
-    if (!res.ok) throw new Error(`${DATA_URL} not found`);
-    payload = await res.json();
-  } catch (err) {
-    say(`Couldn't load ${DATA_URL}. Put the data file next to this page, or change DATA_URL near the bottom of this file.`);
-    return;
-  }
-
-  let table;
-  try {
-    table = normalise(payload);
-  } catch (err) {
-    say(`${DATA_URL} loaded, but I couldn't make sense of it: ${err.message}`);
-    return;
-  }
-  payload = table;
-  FIELDS.forEach((name, i) => { F[name] = i; });
-
-  // Group year-rows into establishments. OSHA's own ID isn't stable across
-  // years, so group on normalised name + ZIP + street number instead.
-  const groups = new Map();
-  for (const row of payload.rows) {
-    const name = normName(row[F.name] || row[F.company]);
-    const zip = String(row[F.zip] || "").slice(0, 5);
-    const addr = normAddress(row[F.address]);
-    const key = `${name}|${zip}|${addr.number}`;
-    if (!groups.has(key)) groups.set(key, { key, name, zip, addr, rows: [] });
-    groups.get(key).rows.push(row);
-  }
-
-  entities = [...groups.values()];
-
-  const states = [...new Set(payload.map((r) => String(r[F.state] || "").toUpperCase()).filter(Boolean))].sort();
-  const stateSel = el("state");
-  for (const code of states) {
-    stateSel.append(Object.assign(document.createElement("option"), { value: code, textContent: code }));
-  }
-  if (states.length > 1) el("stateField").classList.remove("hide");
-  if (states.length === 1) stateSel.value = states[0];
-  for (const entity of entities) {
-    entity.rows.sort((a, b) => Number(a[F.year]) - Number(b[F.year]));
-    entity.latest = entity.rows[entity.rows.length - 1];
-  }
-
+  // Reference data first — small, and needed whatever state is chosen.
   try {
     const res = await fetch("industries.json");
     industries = (await res.json()).industries || [];
@@ -317,25 +284,124 @@ async function load() {
 
   try {
     const res = await fetch(RATES_URL);
-    rates = (await res.json()).rates || {};
+    const data = await res.json();
+    rates = data.rates || {};
+    stateAreas = data.stateAreas || {};
+    areaNames = data.areas || {};
   } catch (err) { rates = {}; }
 
-  hideStatus();
+  FIELDS.forEach((name, i) => { F[name] = i; });
+
+  try {
+    const res = await fetch(MANIFEST_URL);
+    if (!res.ok) throw new Error(`not found (${res.status})`);
+    manifest = (await res.json()).states || {};
+  } catch (err) {
+    say(`Couldn't read ${MANIFEST_URL}. Run prep.html, then upload the data folder it produces.`);
+    return;
+  }
+
+  const codes = Object.keys(manifest).sort();
+  if (!codes.length) { say("The manifest lists no states."); return; }
+
+  const stateSel = el("state");
+  stateSel.innerHTML = "";
+  for (const code of codes) {
+    const years = manifest[code] || [];
+    stateSel.append(Object.assign(document.createElement("option"),
+      { value: code, textContent: `${code} (${years.length} year${years.length === 1 ? "" : "s"})` }));
+  }
+  el("stateField").classList.remove("hide");
+
+  stateSel.addEventListener("change", () => {
+    const picked = [...stateSel.selectedOptions].map((o) => o.value);
+    if (picked.length > MAX_STATES) {
+      say(`Up to ${MAX_STATES} states at a time — each one is a download.`);
+      return;
+    }
+    if (picked.length) loadStates(picked);
+  });
+
+  if (codes.length === 1) {
+    stateSel.options[0].selected = true;
+    await loadStates([codes[0]]);
+  } else {
+    say(`Choose up to ${MAX_STATES} states to load. Hold Ctrl (Cmd on a Mac) to pick several.`);
+  }
+}
+
+async function loadStates(codes) {
+  const wanted = codes.slice(0, MAX_STATES).sort();
+  if (loadedStates.join() === wanted.join()) return;
+
+  say(`Loading ${wanted.join(", ")}\u2026`);
+  el("results").innerHTML = "";
+  el("detail").classList.add("hide");
+
+  const rows = [], failed = [], got = [];
+
+  for (const code of wanted) {
+    const years = [...(manifest[code] || [])].sort((a, b) => b - a).slice(0, YEARS_TO_LOAD);
+    let any = false;
+    for (const year of years) {
+      const url = `${DATA_DIR}ita-${code.toLowerCase()}-${year}.json`;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`not found (${res.status})`);
+        rows.push(...normalise(await res.json()));
+        any = true;
+      } catch (err) {
+        failed.push(`${code} ${year} (${err.message})`);
+      }
+    }
+    if (any) got.push(code);
+  }
+
+  if (!rows.length) {
+    say(`Couldn't load any filings. ${failed.join("; ")}`);
+    entities = [];
+    loadedStates = [];
+    return;
+  }
+
+  // OSHA's establishment ID is reissued between years, so group on
+  // normalised name + state + ZIP + street number instead.
+  const groups = new Map();
+  for (const row of rows) {
+    const name = normName(row[F.name] || row[F.company]);
+    const state = String(row[F.state] || "").toUpperCase();
+    const zip = String(row[F.zip] || "").slice(0, 5);
+    const addr = normAddress(row[F.address]);
+    const key = `${name}|${state}|${zip}|${addr.number}`;
+    if (!groups.has(key)) groups.set(key, { key, name, state, zip, addr, rows: [] });
+    groups.get(key).rows.push(row);
+  }
+
+  entities = [...groups.values()];
+  for (const entity of entities) {
+    entity.rows.sort((a, b) => Number(a[F.year]) - Number(b[F.year]));
+    entity.latest = entity.rows[entity.rows.length - 1];
+  }
+
+  loadedStates = got;
+
+  const summary = `${got.join(", ")}: ${entities.length.toLocaleString()} establishments`;
+  if (failed.length) say(`${summary}. Missing ${failed.join("; ")}.`);
+  else { hideStatus(); }
   el("q").focus();
 }
 
 function search() {
   const query = normName(el("q").value);
-  const state = el("state").value;
   const city = el("city").value.trim().toUpperCase();
   const zip = el("zip").value.trim().slice(0, 5);
   el("detail").classList.add("hide");
 
+  if (!loadedStates.length) { say("Choose at least one state first."); return; }
   if (!query) { say("Type a business name to search."); el("results").innerHTML = ""; return; }
 
   const scored = [];
   for (const entity of entities) {
-    if (state && String(entity.latest[F.state] || "").toUpperCase() !== state) continue;
     if (zip && entity.zip !== zip) continue;
     if (city && String(entity.latest[F.city] || "").toUpperCase().indexOf(city) === -1) continue;
     const score = similarity(query, entity.name);
@@ -368,7 +434,7 @@ function render(hits) {
     name.textContent = row[F.name] || row[F.company];
     const meta = document.createElement("div");
     meta.className = "rmeta";
-    meta.textContent = [row[F.address], row[F.city], hit.entity.zip].filter(Boolean).join(", ")
+    meta.textContent = [row[F.address], row[F.city], row[F.state], hit.entity.zip].filter(Boolean).join(", ")
       + ` · NAICS ${row[F.naics] || "—"} · ${hit.entity.rows.length} year${hit.entity.rows.length > 1 ? "s" : ""}`;
     left.append(name, meta);
 
@@ -393,17 +459,28 @@ function findIndustry(naics) {
   return null;
 }
 
-function benchmark(naics) {
+/* Prefer the establishment's own state; fall back to national where BLS
+   suppressed the state estimate. */
+function benchmark(naics, stateCode) {
   const industry = findIndustry(naics);
   if (!industry) return null;
   const code = industry.naics || "all";
-  const byYear = (rates[code] || {})["31"];     // 31 = total recordable cases, rate per 100
+  const measures = rates[code] || {};
+
+  const stateArea = stateAreas[String(stateCode || "").toUpperCase()];
+  const area = (stateArea && measures["31"] && measures["31"][stateArea]) ? stateArea : "100";
+
+  const byYear = (measures["31"] || {})[area];
   if (!byYear) return null;
-  const dart = (rates[code] || {})["32"];       // 32 = DART rate per 100
+  const dart = (measures["32"] || {})[area] || {};
+
   return {
     industry,
+    area,
+    areaLabel: areaNames[area] || (area === "100" ? "national" : area),
+    isState: area !== "100",
     byYear: new Map(Object.entries(byYear).map(([y, v]) => [Number(y), v])),
-    dartByYear: new Map(Object.entries(dart || {}).map(([y, v]) => [Number(y), v]))
+    dartByYear: new Map(Object.entries(dart).map(([y, v]) => [Number(y), v]))
   };
 }
 
@@ -423,7 +500,7 @@ async function showDetail(entity) {
   panel.append(title, addr);
 
   const years = entity.rows.map((r) => Number(r[F.year])).filter(Boolean);
-  const bench = benchmark(latest[F.naics]);
+  const bench = benchmark(latest[F.naics], latest[F.state]);
 
   const latestYear = Number(latest[F.year]);
   const industryRate = bench ? bench.byYear.get(latestYear) : null;
@@ -436,9 +513,9 @@ async function showDetail(entity) {
     card("Total case rate", fmt(tcr), `${latestYear} · per 100 workers`),
     card("DART rate", fmt(latest[F.dart]), `${latestYear} · days away, restricted or transferred`),
     card("Industry average", industryRate != null ? fmt(industryRate) : "—",
-         bench ? `${bench.industry.label} (${bench.industry.naics})` : "BLS publishes no private-industry rate for this NAICS"),
+         bench ? `${bench.industry.label} \u2014 ${bench.areaLabel}` : "BLS publishes no private-industry rate for this NAICS"),
     card("Against industry", ratio ? `${ratio.toFixed(2)}\u00d7` : "—",
-         ratio ? (ratio > 1 ? "worse than industry" : "better than industry") : "",
+         ratio ? `${ratio > 1 ? "worse" : "better"} than ${bench.isState ? "its state" : "the national"} average` : "",
          ratio ? (ratio > 1 ? "over" : "under") : "")
   );
   panel.append(cards);
