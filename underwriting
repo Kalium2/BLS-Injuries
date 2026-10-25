@@ -33,8 +33,9 @@
   nav.tools a[aria-current] { color: var(--ink-soft); text-decoration:none; cursor:default; }
   header p { margin: .35rem 0 0; color: var(--ink-soft); font-size: .88rem; max-width: 44rem; }
 
-  .search { display: grid; grid-template-columns: 1fr 10rem 7rem auto; gap: .6rem; align-items: end; }
-  @media (max-width: 44rem) { .search { grid-template-columns: 1fr 1fr; } }
+  .search { display: grid; grid-template-columns: 1fr 8rem 9rem 6.5rem auto; gap: .6rem; align-items: end; }
+  @media (max-width: 50rem) { .search { grid-template-columns: 1fr 1fr; } }
+  select { width:100%; font:inherit; font-size:.92rem; padding:.45rem .55rem; background:var(--paper); color:var(--ink); border:1px solid var(--rule); border-radius:0; }
   label { display: block; font-size: .8rem; font-weight: 500; color: var(--ink-soft); margin-bottom: .2rem; }
   input {
     width: 100%; font: inherit; font-size: .92rem; padding: .45rem .55rem;
@@ -90,7 +91,7 @@
 
 <header>
   <h1>Establishment injury lookup</h1>
-  <p>Finds a California location in OSHA's injury filings, works out its own injury rates,
+  <p>Finds a location in OSHA's injury filings, works out its own injury rates,
      and sets them against the industry. For understanding a risk and checking class fit —
      not for pricing.</p>
   <nav class="tools">
@@ -104,6 +105,10 @@
     <label for="q">Business name</label>
     <input type="text" id="q" placeholder="e.g. Pacific Steel" autocomplete="off">
   </div>
+  <div id="stateField" class="hide">
+    <label for="state">State</label>
+    <select id="state"><option value="">All</option></select>
+  </div>
   <div>
     <label for="city">City (optional)</label>
     <input type="text" id="city" autocomplete="off">
@@ -115,7 +120,7 @@
   <button type="submit">Search</button>
 </form>
 
-<div id="status" class="status">Loading California filings…</div>
+<div id="status" class="status">Loading filings…</div>
 
 <ul class="results" id="results"></ul>
 <div class="detail hide" id="detail"></div>
@@ -181,6 +186,83 @@ function similarity(query, target) {
   return hits / a.length;
 }
 
+/* Canonical column order used throughout this page. */
+const FIELDS = ["year","name","company","address","city","state","zip","naics","industry",
+                "employees","hours","deaths","dafw","djtr","other","tcr","dart"];
+
+/* Column names we accept for each, so the page reads either the prep.html
+   output or a plain export carrying OSHA's own header names. */
+const ALIASES = {
+  year:      ["year", "year_filing_for"],
+  name:      ["name", "establishment_name", "establisment_name", "estab_name"],
+  company:   ["company", "company_name"],
+  address:   ["address", "street_address", "address1"],
+  city:      ["city"],
+  state:     ["state"],
+  zip:       ["zip", "zip_code"],
+  naics:     ["naics", "naics_code"],
+  industry:  ["industry", "industry_description"],
+  employees: ["employees", "annual_average_employees"],
+  hours:     ["hours", "total_hours_worked"],
+  deaths:    ["deaths", "total_deaths"],
+  dafw:      ["dafw", "total_dafw_cases"],
+  djtr:      ["djtr", "total_djtr_cases"],
+  other:     ["other", "total_other_cases"],
+  tcr:       ["tcr"],
+  dart:      ["dart"],
+};
+
+function pick(keys, names) {
+  for (const name of names) {
+    const at = keys.indexOf(name);
+    if (at !== -1) return at;
+  }
+  return -1;
+}
+
+function rate(cases, hours) {
+  if (!hours || hours <= 0 || !isFinite(cases)) return null;
+  return Math.round(((cases * 200000) / hours) * 100) / 100;
+}
+
+/* Accepts: {fields, rows}, an array of objects, or {rows:[objects]}.
+   Returns rows as arrays in FIELDS order, with rates filled in if absent. */
+function normalise(payload) {
+  let header, records;
+
+  if (payload && Array.isArray(payload.fields) && Array.isArray(payload.rows)) {
+    header = payload.fields.map((h) => String(h).trim().toLowerCase());
+    records = payload.rows;
+  } else {
+    const list = Array.isArray(payload) ? payload
+               : Array.isArray(payload?.rows) ? payload.rows
+               : Array.isArray(payload?.data) ? payload.data : null;
+    if (!list || !list.length) throw new Error("no rows found");
+    if (typeof list[0] !== "object" || Array.isArray(list[0])) {
+      throw new Error("rows are not objects and no field list was supplied");
+    }
+    header = Object.keys(list[0]).map((h) => h.trim().toLowerCase());
+    records = list.map((obj) => Object.values(obj));
+  }
+
+  const at = {};
+  for (const [field, names] of Object.entries(ALIASES)) at[field] = pick(header, names);
+  if (at.name === -1 && at.company === -1) throw new Error("no establishment name column");
+
+  return records.map((record) => {
+    const out = FIELDS.map((field) => at[field] === -1 ? "" : record[at[field]]);
+    const i = (f) => FIELDS.indexOf(f);
+    const n = (f) => Number(String(out[i(f)]).replace(/[^0-9.\-]/g, "")) || 0;
+    if (out[i("tcr")] === "" || out[i("tcr")] === null || out[i("tcr")] === undefined) {
+      out[i("tcr")] = rate(n("dafw") + n("djtr") + n("other"), n("hours"));
+    }
+    if (out[i("dart")] === "" || out[i("dart")] === null || out[i("dart")] === undefined) {
+      out[i("dart")] = rate(n("dafw") + n("djtr"), n("hours"));
+    }
+    return out;
+  });
+}
+
 async function load() {
   let payload;
   try {
@@ -188,11 +270,19 @@ async function load() {
     if (!res.ok) throw new Error(`${DATA_URL} not found`);
     payload = await res.json();
   } catch (err) {
-    say(`Couldn't load ${DATA_URL}. Run the prep page first, then put the file it makes next to this one.`);
+    say(`Couldn't load ${DATA_URL}. Put the data file next to this page, or change DATA_URL near the bottom of this file.`);
     return;
   }
 
-  payload.fields.forEach((name, i) => { F[name] = i; });
+  let table;
+  try {
+    table = normalise(payload);
+  } catch (err) {
+    say(`${DATA_URL} loaded, but I couldn't make sense of it: ${err.message}`);
+    return;
+  }
+  payload = table;
+  FIELDS.forEach((name, i) => { F[name] = i; });
 
   // Group year-rows into establishments. OSHA's own ID isn't stable across
   // years, so group on normalised name + ZIP + street number instead.
@@ -207,6 +297,14 @@ async function load() {
   }
 
   entities = [...groups.values()];
+
+  const states = [...new Set(payload.map((r) => String(r[F.state] || "").toUpperCase()).filter(Boolean))].sort();
+  const stateSel = el("state");
+  for (const code of states) {
+    stateSel.append(Object.assign(document.createElement("option"), { value: code, textContent: code }));
+  }
+  if (states.length > 1) el("stateField").classList.remove("hide");
+  if (states.length === 1) stateSel.value = states[0];
   for (const entity of entities) {
     entity.rows.sort((a, b) => Number(a[F.year]) - Number(b[F.year]));
     entity.latest = entity.rows[entity.rows.length - 1];
@@ -228,6 +326,7 @@ async function load() {
 
 function search() {
   const query = normName(el("q").value);
+  const state = el("state").value;
   const city = el("city").value.trim().toUpperCase();
   const zip = el("zip").value.trim().slice(0, 5);
   el("detail").classList.add("hide");
@@ -236,6 +335,7 @@ function search() {
 
   const scored = [];
   for (const entity of entities) {
+    if (state && String(entity.latest[F.state] || "").toUpperCase() !== state) continue;
     if (zip && entity.zip !== zip) continue;
     if (city && String(entity.latest[F.city] || "").toUpperCase().indexOf(city) === -1) continue;
     const score = similarity(query, entity.name);
@@ -318,7 +418,7 @@ async function showDetail(entity) {
   title.textContent = latest[F.name] || latest[F.company];
   const addr = document.createElement("div");
   addr.className = "addr";
-  addr.textContent = [latest[F.address], latest[F.city], "CA", entity.zip].filter(Boolean).join(", ")
+  addr.textContent = [latest[F.address], latest[F.city], latest[F.state], entity.zip].filter(Boolean).join(", ")
     + ` · NAICS ${latest[F.naics] || "—"}${latest[F.industry] ? " · " + latest[F.industry] : ""}`;
   panel.append(title, addr);
 
