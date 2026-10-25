@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Establishment injury lookup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #15181c; --ink-soft: #5c6470; --paper: #fff; --field: #f1f3f1;
+    --rule: #ced3cd; --safety: #00703c; --alert: #b3362a; --warn: #7a5c2e; --focus: #1f5673;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #e8eae7; --ink-soft: #99a1a8; --paper: #16191b; --field: #1f2325;
+      --rule: #343a3c; --safety: #4fae7d; --alert: #e08478; --warn: #c2a068; --focus: #7fb3d1;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { color-scheme: light dark; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+  }
+  .wrap { max-width: 64rem; margin: 0 auto; padding: 1.5rem; }
+  header { border-bottom: 2px solid var(--ink); padding-bottom: .75rem; margin-bottom: 1.25rem; }
+  h1 { font-size: 1.4rem; font-weight: 600; margin: 0; letter-spacing: -.015em; }
+  header p { margin: .35rem 0 0; color: var(--ink-soft); font-size: .88rem; max-width: 44rem; }
+
+  .search { display: grid; grid-template-columns: 1fr 10rem 7rem auto; gap: .6rem; align-items: end; }
+  @media (max-width: 44rem) { .search { grid-template-columns: 1fr 1fr; } }
+  label { display: block; font-size: .8rem; font-weight: 500; color: var(--ink-soft); margin-bottom: .2rem; }
+  input {
+    width: 100%; font: inherit; font-size: .92rem; padding: .45rem .55rem;
+    background: var(--paper); color: var(--ink); border: 1px solid var(--rule); border-radius: 0;
+  }
+  button {
+    font: inherit; font-size: .92rem; font-weight: 500; padding: .5rem 1.1rem;
+    background: var(--safety); color: #fff; border: 1px solid transparent; border-radius: 0; cursor: pointer;
+  }
+  @media (prefers-color-scheme: dark) { button { color: #10130f; } }
+  button.ghost { background: none; color: var(--ink-soft); border-color: var(--rule); }
+  :is(button, input):focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  .status { font-size: .88rem; padding: .6rem .8rem; margin: 1rem 0; border-left: 3px solid var(--warn); background: var(--field); }
+
+  ul.results { list-style: none; margin: 1.25rem 0 0; padding: 0; }
+  ul.results li { border-bottom: 1px solid var(--rule); }
+  ul.results button {
+    width: 100%; text-align: left; background: none; color: inherit; border: 0;
+    padding: .7rem 0; display: grid; grid-template-columns: 1fr auto; gap: .5rem; font-weight: 400;
+  }
+  ul.results button:hover { background: var(--field); }
+  .rname { font-weight: 500; }
+  .rmeta { font-size: .84rem; color: var(--ink-soft); }
+  .rscore { font-size: .8rem; color: var(--ink-soft); white-space: nowrap; align-self: center; }
+
+  .detail { margin-top: 1.5rem; }
+  .detail h2 { font-size: 1.15rem; font-weight: 600; margin: 0 0 .15rem; }
+  .detail .addr { color: var(--ink-soft); font-size: .9rem; margin-bottom: 1rem; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+  .card { background: var(--paper); padding: .9rem 1rem; }
+  .card .k { font-size: .78rem; color: var(--ink-soft); }
+  .card .v { font-size: 1.5rem; font-weight: 600; letter-spacing: -.02em; }
+  .card .n { font-size: .78rem; color: var(--ink-soft); }
+  .over { color: var(--alert); }
+  .under { color: var(--safety); }
+
+  table { border-collapse: collapse; width: 100%; font-size: .87rem; margin-top: 1.5rem; }
+  caption { text-align: left; font-size: .85rem; color: var(--ink-soft); margin-bottom: .4rem; }
+  th, td { padding: .35rem .7rem .35rem 0; text-align: right; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  thead th { font-weight: 600; border-bottom: 1px solid var(--ink); }
+  .table-scroll { overflow-x: auto; }
+
+  footer { margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid var(--rule); font-size: .82rem; color: var(--ink-soft); }
+  footer p { margin: .4rem 0; max-width: 46rem; }
+  .hide { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Establishment injury lookup</h1>
+  <p>Finds a California location in OSHA's injury filings, works out its own injury rates,
+     and sets them against the industry. For understanding a risk and checking class fit —
+     not for pricing.</p>
+</header>
+
+<form class="search" id="search">
+  <div>
+    <label for="q">Business name</label>
+    <input type="text" id="q" placeholder="e.g. Pacific Steel" autocomplete="off">
+  </div>
+  <div>
+    <label for="city">City (optional)</label>
+    <input type="text" id="city" autocomplete="off">
+  </div>
+  <div>
+    <label for="zip">ZIP (optional)</label>
+    <input type="text" id="zip" inputmode="numeric" autocomplete="off">
+  </div>
+  <button type="submit">Search</button>
+</form>
+
+<div id="status" class="status">Loading California filings…</div>
+
+<ul class="results" id="results"></ul>
+<div class="detail hide" id="detail"></div>
+
+<footer>
+  <p>Establishment figures come from OSHA's Injury Tracking Application, as filed by the
+     employer. OSHA does not validate company names, addresses, industry codes or the counts
+     themselves, so treat a surprising number as a question rather than a finding.</p>
+  <p>Industry comparisons come from the BLS Survey of Occupational Injuries and Illnesses.
+     OSHA's filings are not a representative sample of any industry, and the BLS survey cannot
+     describe an individual employer — so each dataset is used only for the job it can do.</p>
+  <p>Industry here is NAICS. Workers' compensation classification is not, and the two do not
+     correspond. Nothing here determines a class code.</p>
+</footer>
+
+</div>
+
+<script>
+/* ------------------------------------------------------------------ */
+const RATES_URL = "industry-rates.json";
+const DATA_URL = "ita-ca.json";
+/* ------------------------------------------------------------------ */
+
+const SUFFIXES = new Set(["INC","INCORPORATED","LLC","LLP","LP","CORP","CORPORATION",
+  "CO","COMPANY","LTD","LIMITED","THE","GROUP","HOLDINGS","USA","US"]);
+
+const STREETS = { STREET:"ST", AVENUE:"AVE", AV:"AVE", ROAD:"RD", BOULEVARD:"BLVD",
+  DRIVE:"DR", LANE:"LN", COURT:"CT", PLACE:"PL", PARKWAY:"PKWY", HIGHWAY:"HWY",
+  NORTH:"N", SOUTH:"S", EAST:"E", WEST:"W" };
+
+let F = {};           // field name -> column position
+let entities = [];    // one per establishment, with a row per year
+let industries = [];
+let rates = {};
+
+const el = (id) => document.getElementById(id);
+
+function say(text) { el("status").textContent = text; el("status").classList.remove("hide"); }
+function hideStatus() { el("status").classList.add("hide"); }
+
+function normName(value) {
+  return String(value || "").toUpperCase().replace(/[^A-Z0-9 ]/g, " ")
+    .split(/\s+/).filter((w) => w && !SUFFIXES.has(w)).join(" ");
+}
+
+function normAddress(value) {
+  const words = String(value || "").toUpperCase().replace(/[^A-Z0-9 ]/g, " ").split(/\s+/).filter(Boolean);
+  const cut = words.findIndex((w) => ["STE","SUITE","UNIT","APT","BLDG","FL"].includes(w));
+  const kept = (cut === -1 ? words : words.slice(0, cut)).map((w) => STREETS[w] || w);
+  return { number: /^\d+$/.test(kept[0] || "") ? kept[0] : "", rest: kept.join(" ") };
+}
+
+/* Token overlap, 0 to 1. Favours queries whose words all appear in the name. */
+function similarity(query, target) {
+  const a = query.split(" ").filter(Boolean);
+  const b = new Set(target.split(" ").filter(Boolean));
+  if (!a.length || !b.size) return 0;
+  let hits = 0;
+  for (const word of a) {
+    if (b.has(word)) hits += 1;
+    else if ([...b].some((t) => t.startsWith(word) || word.startsWith(t))) hits += 0.6;
+  }
+  return hits / a.length;
+}
+
+async function load() {
+  let payload;
+  try {
+    const res = await fetch(DATA_URL);
+    if (!res.ok) throw new Error(`${DATA_URL} not found`);
+    payload = await res.json();
+  } catch (err) {
+    say(`Couldn't load ${DATA_URL}. Run the prep page first, then put the file it makes next to this one.`);
+    return;
+  }
+
+  payload.fields.forEach((name, i) => { F[name] = i; });
+
+  // Group year-rows into establishments. OSHA's own ID isn't stable across
+  // years, so group on normalised name + ZIP + street number instead.
+  const groups = new Map();
+  for (const row of payload.rows) {
+    const name = normName(row[F.name] || row[F.company]);
+    const zip = String(row[F.zip] || "").slice(0, 5);
+    const addr = normAddress(row[F.address]);
+    const key = `${name}|${zip}|${addr.number}`;
+    if (!groups.has(key)) groups.set(key, { key, name, zip, addr, rows: [] });
+    groups.get(key).rows.push(row);
+  }
+
+  entities = [...groups.values()];
+  for (const entity of entities) {
+    entity.rows.sort((a, b) => Number(a[F.year]) - Number(b[F.year]));
+    entity.latest = entity.rows[entity.rows.length - 1];
+  }
+
+  try {
+    const res = await fetch("industries.json");
+    industries = (await res.json()).industries || [];
+  } catch (err) { industries = []; }
+
+  try {
+    const res = await fetch(RATES_URL);
+    rates = (await res.json()).rates || {};
+  } catch (err) { rates = {}; }
+
+  hideStatus();
+  el("q").focus();
+}
+
+function search() {
+  const query = normName(el("q").value);
+  const city = el("city").value.trim().toUpperCase();
+  const zip = el("zip").value.trim().slice(0, 5);
+  el("detail").classList.add("hide");
+
+  if (!query) { say("Type a business name to search."); el("results").innerHTML = ""; return; }
+
+  const scored = [];
+  for (const entity of entities) {
+    if (zip && entity.zip !== zip) continue;
+    if (city && String(entity.latest[F.city] || "").toUpperCase().indexOf(city) === -1) continue;
+    const score = similarity(query, entity.name);
+    if (score >= 0.5) scored.push({ entity, score });
+  }
+
+  scored.sort((a, b) => b.score - a.score || a.entity.name.localeCompare(b.entity.name));
+  render(scored.slice(0, 40));
+}
+
+function render(hits) {
+  const list = el("results");
+  list.innerHTML = "";
+
+  if (!hits.length) {
+    say("No match. Absence here does not mean a clean record — most employers are below OSHA's reporting thresholds and never file at all.");
+    return;
+  }
+  hideStatus();
+
+  for (const hit of hits) {
+    const row = hit.entity.latest;
+    const li = document.createElement("li");
+    const button = document.createElement("button");
+    button.type = "button";
+
+    const left = document.createElement("div");
+    const name = document.createElement("div");
+    name.className = "rname";
+    name.textContent = row[F.name] || row[F.company];
+    const meta = document.createElement("div");
+    meta.className = "rmeta";
+    meta.textContent = [row[F.address], row[F.city], hit.entity.zip].filter(Boolean).join(", ")
+      + ` · NAICS ${row[F.naics] || "—"} · ${hit.entity.rows.length} year${hit.entity.rows.length > 1 ? "s" : ""}`;
+    left.append(name, meta);
+
+    const score = document.createElement("div");
+    score.className = "rscore";
+    score.textContent = `${Math.round(hit.score * 100)}% name match`;
+
+    button.append(left, score);
+    button.addEventListener("click", () => showDetail(hit.entity));
+    li.append(button);
+    list.append(li);
+  }
+}
+
+function findIndustry(naics) {
+  let code = String(naics || "").replace(/\D/g, "");
+  while (code.length >= 2) {
+    const hit = industries.find((row) => row.naics === code);
+    if (hit) return hit;
+    code = code.slice(0, -1);
+  }
+  return null;
+}
+
+function benchmark(naics) {
+  const industry = findIndustry(naics);
+  if (!industry) return null;
+  const code = industry.naics || "all";
+  const byYear = (rates[code] || {})["31"];     // 31 = total recordable cases, rate per 100
+  if (!byYear) return null;
+  const dart = (rates[code] || {})["32"];       // 32 = DART rate per 100
+  return {
+    industry,
+    byYear: new Map(Object.entries(byYear).map(([y, v]) => [Number(y), v])),
+    dartByYear: new Map(Object.entries(dart || {}).map(([y, v]) => [Number(y), v]))
+  };
+}
+
+async function showDetail(entity) {
+  const panel = el("detail");
+  panel.classList.remove("hide");
+  panel.innerHTML = "";
+  el("results").innerHTML = "";
+
+  const latest = entity.latest;
+  const title = document.createElement("h2");
+  title.textContent = latest[F.name] || latest[F.company];
+  const addr = document.createElement("div");
+  addr.className = "addr";
+  addr.textContent = [latest[F.address], latest[F.city], "CA", entity.zip].filter(Boolean).join(", ")
+    + ` · NAICS ${latest[F.naics] || "—"}${latest[F.industry] ? " · " + latest[F.industry] : ""}`;
+  panel.append(title, addr);
+
+  const years = entity.rows.map((r) => Number(r[F.year])).filter(Boolean);
+  const bench = benchmark(latest[F.naics]);
+
+  const latestYear = Number(latest[F.year]);
+  const industryRate = bench ? bench.byYear.get(latestYear) : null;
+  const tcr = latest[F.tcr];
+  const ratio = (tcr != null && industryRate) ? tcr / industryRate : null;
+
+  const cards = document.createElement("div");
+  cards.className = "cards";
+  cards.append(
+    card("Total case rate", fmt(tcr), `${latestYear} · per 100 workers`),
+    card("DART rate", fmt(latest[F.dart]), `${latestYear} · days away, restricted or transferred`),
+    card("Industry average", industryRate != null ? fmt(industryRate) : "—",
+         bench ? `${bench.industry.label} (${bench.industry.naics})` : "BLS publishes no private-industry rate for this NAICS"),
+    card("Against industry", ratio ? `${ratio.toFixed(2)}\u00d7` : "—",
+         ratio ? (ratio > 1 ? "worse than industry" : "better than industry") : "",
+         ratio ? (ratio > 1 ? "over" : "under") : "")
+  );
+  panel.append(cards);
+
+  const employees = Number(latest[F.employees]) || 0;
+  const hours = Number(latest[F.hours]) || 0;
+  if (employees && hours) {
+    const perHead = hours / employees;
+    if (perHead < 800 || perHead > 3200) {
+      const warn = document.createElement("div");
+      warn.className = "status";
+      warn.textContent = `Reported hours work out at ${Math.round(perHead)} per employee per year, `
+        + "which is outside the normal range. The rates above may be unreliable — worth verifying before using them.";
+      panel.append(warn);
+    }
+  }
+
+  panel.append(history(entity, bench));
+
+  const back = document.createElement("button");
+  back.type = "button";
+  back.className = "ghost";
+  back.style.marginTop = "1.25rem";
+  back.textContent = "New search";
+  back.addEventListener("click", () => { panel.classList.add("hide"); el("q").select(); });
+  panel.append(back);
+}
+
+function card(key, value, note, tone) {
+  const node = document.createElement("div");
+  node.className = "card";
+  node.innerHTML = `<div class="k"></div><div class="v"></div><div class="n"></div>`;
+  node.querySelector(".k").textContent = key;
+  node.querySelector(".v").textContent = value;
+  if (tone) node.querySelector(".v").classList.add(tone);
+  node.querySelector(".n").textContent = note || "";
+  return node;
+}
+
+function fmt(value) {
+  return value === null || value === undefined || value === "" ? "—" : Number(value).toFixed(1);
+}
+
+function history(entity, bench) {
+  const wrap = document.createElement("div");
+  wrap.className = "table-scroll";
+  const table = document.createElement("table");
+  const caption = document.createElement("caption");
+  caption.textContent = "Filed each year, with the industry average alongside.";
+  table.append(caption);
+
+  const head = document.createElement("thead");
+  head.innerHTML = "<tr><th>Year</th><th>Employees</th><th>Hours</th><th>Recordable</th>"
+    + "<th>DART cases</th><th>TCR</th><th>DART rate</th><th>Industry TCR</th><th>Ratio</th></tr>";
+  table.append(head);
+
+  const body = document.createElement("tbody");
+  for (const row of entity.rows) {
+    const year = Number(row[F.year]);
+    const recordable = Number(row[F.dafw]) + Number(row[F.djtr]) + Number(row[F.other]);
+    const dartCases = Number(row[F.dafw]) + Number(row[F.djtr]);
+    const ind = bench ? bench.byYear.get(year) : null;
+    const ratio = (row[F.tcr] != null && ind) ? (row[F.tcr] / ind) : null;
+    const tr = document.createElement("tr");
+    [year, Number(row[F.employees]).toLocaleString(), Number(row[F.hours]).toLocaleString(),
+     recordable, dartCases, fmt(row[F.tcr]), fmt(row[F.dart]),
+     ind != null ? ind.toFixed(1) : "—", ratio ? ratio.toFixed(2) + "\u00d7" : "—"
+    ].forEach((value, i) => {
+      const cell = document.createElement(i === 0 ? "th" : "td");
+      cell.textContent = value;
+      tr.append(cell);
+    });
+    body.append(tr);
+  }
+  table.append(body);
+  wrap.append(table);
+  return wrap;
+}
+
+el("search").addEventListener("submit", (event) => { event.preventDefault(); search(); });
+load();
+</script>
+</body>
+</html>
